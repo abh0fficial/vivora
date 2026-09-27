@@ -1,0 +1,15 @@
+# Server-specific secrets – created by install.php on Hostinger, never commit.
+config.php
+
+# Uploaded product images and brochures live only on the server.
+uploads/products/*
+uploads/brochures/*
+!uploads/products/.gitkeep
+!uploads/brochures/.gitkeep
+
+.DS_Store
+Thumbs.db
+*.log
+error_log
+.idea/
+.vscode/

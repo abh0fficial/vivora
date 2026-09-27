@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /install.php
+Disallow: /uploads/brochures/
