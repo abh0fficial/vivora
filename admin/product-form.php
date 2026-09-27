@@ -35,8 +35,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         'stock_qty' => (int) post('stock_qty'),
         'min_stock' => max(0, (int) post('min_stock')),
         'warranty' => post('warranty'),
-        'show_price' => isset($_POST['show_price']) ? 1 : 0,
-        'is_featured' => isset($_POST['is_featured']) ? 1 : 0,
         'is_active' => isset($_POST['is_active']) ? 1 : 0,
     ]);
 
@@ -112,7 +110,7 @@ $pageTitle = $product ? 'Edit Product' : 'Add Product';
 $activeNav = $product ? 'products' : 'product-new';
 $breadcrumbs = ['Products' => 'products.php', $pageTitle => null];
 if ($product) {
-    $pageActions = '<a href="' . e(base_url('product.php?slug=' . rawurlencode($product['slug']))) . '" target="_blank" class="btn btn-light-brand"><i class="feather-eye me-2"></i>View on website</a>';
+    $pageActions = '<a href="quotation-form.php?product_id=' . $id . '" class="btn btn-light-brand"><i class="feather-file-plus me-2"></i>Create quotation</a>';
 }
 require __DIR__ . '/partials/header.php';
 ?>
@@ -153,7 +151,7 @@ require __DIR__ . '/partials/header.php';
                     </div>
                     <div class="mb-4">
                         <label class="form-label">Short description</label>
-                        <input type="text" name="short_description" class="form-control" value="<?= e($data['short_description']) ?>" maxlength="300" placeholder="One line shown on product cards">
+                        <input type="text" name="short_description" class="form-control" value="<?= e($data['short_description']) ?>" maxlength="300" placeholder="One-line summary">
                     </div>
                     <div class="mb-4">
                         <label class="form-label">Full description</label>
@@ -162,7 +160,7 @@ require __DIR__ . '/partials/header.php';
                     <div class="mb-2">
                         <label class="form-label">Technical specifications</label>
                         <textarea name="specifications" class="form-control font-monospace fs-12" rows="8" placeholder="One per line, e.g.&#10;Channels: 12&#10;Display: 7&quot; colour LCD&#10;Power: AC / Battery"><?= e($data['specifications']) ?></textarea>
-                        <div class="form-text">Write one specification per line as <code>Name: Value</code>. It shows as a table on the website.</div>
+                        <div class="form-text">Write one specification per line as <code>Name: Value</code>.</div>
                     </div>
                 </div>
             </div>
@@ -201,25 +199,17 @@ require __DIR__ . '/partials/header.php';
                             <input type="text" name="warranty" class="form-control" value="<?= e($data['warranty']) ?>" maxlength="120" placeholder="e.g. 1 year manufacturer">
                         </div>
                     </div>
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="show_price" name="show_price" <?= $data['show_price'] ? 'checked' : '' ?>>
-                        <label class="form-check-label" for="show_price">Show price on the website (otherwise “Price on request”)</label>
-                    </div>
                 </div>
             </div>
         </div>
 
         <div class="col-xl-4">
             <div class="card">
-                <div class="card-header"><h5 class="card-title">Publish</h5></div>
+                <div class="card-header"><h5 class="card-title">Status</h5></div>
                 <div class="card-body">
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" <?= $data['is_active'] ? 'checked' : '' ?>>
-                        <label class="form-check-label" for="is_active">Visible on website</label>
-                    </div>
                     <div class="form-check form-switch mb-4">
-                        <input class="form-check-input" type="checkbox" id="is_featured" name="is_featured" <?= $data['is_featured'] ? 'checked' : '' ?>>
-                        <label class="form-check-label" for="is_featured">Featured on home page</label>
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" <?= $data['is_active'] ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="is_active">Active (available for quotations)</label>
                     </div>
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary"><i class="feather-save me-2"></i>Save product</button>
@@ -254,14 +244,13 @@ require __DIR__ . '/partials/header.php';
                         </div>
                     <?php endif; ?>
                     <input type="file" name="brochure" class="form-control" accept="application/pdf">
-                    <div class="form-text">PDF up to 15 MB. Customers can download it from the product page.</div>
+                    <div class="form-text">PDF up to 15 MB — keep datasheets handy for customers.</div>
                 </div>
             </div>
 
             <?php if ($product): ?>
             <div class="card">
                 <div class="card-body fs-12 text-muted">
-                    <div class="d-flex justify-content-between mb-2"><span>Page views</span><strong class="text-dark"><?= (int) $product['views'] ?></strong></div>
                     <div class="d-flex justify-content-between mb-2"><span>Enquiries</span><strong class="text-dark"><?= (int) q_val('SELECT COUNT(*) FROM enquiries WHERE product_id = ?', [$id]) ?></strong></div>
                     <div class="d-flex justify-content-between mb-2"><span>Created</span><span><?= e(fmt_date($product['created_at'], 'd M Y, h:i A')) ?></span></div>
                     <div class="d-flex justify-content-between"><span>Updated</span><span><?= e(fmt_date($product['updated_at'], 'd M Y, h:i A')) ?></span></div>

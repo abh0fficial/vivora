@@ -94,7 +94,7 @@ function vivora_schema(): array
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             product_id INT UNSIGNED NULL,
             customer_id INT UNSIGNED NULL,
-            source ENUM('contact','quote','product') NOT NULL DEFAULT 'contact',
+            source ENUM('phone','whatsapp','email','walk_in','referral','tender','dealer','other','contact','quote','product') NOT NULL DEFAULT 'phone',
             name VARCHAR(160) NOT NULL,
             organization VARCHAR(200) NOT NULL DEFAULT '',
             email VARCHAR(160) NOT NULL DEFAULT '',
@@ -312,6 +312,8 @@ function vivora_install(PDO $pdo, string $adminUser, string $adminPass): array
     foreach (vivora_schema() as $sql) {
         $pdo->exec($sql);
     }
+    // Upgrade older installs: enquiry sources for a dashboard-only setup.
+    $pdo->exec("ALTER TABLE enquiries MODIFY source ENUM('phone','whatsapp','email','walk_in','referral','tender','dealer','other','contact','quote','product') NOT NULL DEFAULT 'phone'");
     $log[] = 'Database tables are ready.';
 
     // Settings: insert missing keys only.

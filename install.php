@@ -124,7 +124,6 @@ if (!$installed && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 <h4 class="fw-bold mb-3"><i class="feather-check-circle text-success me-2"></i>Already installed</h4>
                 <p class="text-muted">Vivora Healthcare is installed and the installer is locked. You can delete <code>install.php</code> from the server.</p>
                 <a href="admin/login.php" class="btn btn-primary">Go to dashboard login</a>
-                <a href="index.php" class="btn btn-light-brand ms-2">View website</a>
             <?php elseif ($done): ?>
                 <h4 class="fw-bold mb-3"><i class="feather-check-circle text-success me-2"></i>Installation complete</h4>
                 <ul class="mb-4">
@@ -135,15 +134,14 @@ if (!$installed && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     <em>My Profile</em>. For extra safety delete <code>install.php</code> from the server.
                 </div>
                 <a href="admin/login.php" class="btn btn-primary">Go to dashboard login</a>
-                <a href="index.php" class="btn btn-light-brand ms-2">View website</a>
             <?php else: ?>
-                <h4 class="fw-bold mb-1">Website installer</h4>
+                <h4 class="fw-bold mb-1">Dashboard installer</h4>
                 <p class="text-muted mb-4">Enter your Hostinger MySQL details (hPanel → Databases → Management).</p>
                 <?php foreach ($errors as $err): ?>
                     <div class="alert alert-danger"><?= e($err) ?></div>
                 <?php endforeach; ?>
                 <?php if (!is_writable(__DIR__)): ?>
-                    <div class="alert alert-warning">The website folder is not writable, so <code>config.php</code> cannot be created automatically. Create it from <code>config.sample.php</code> in File Manager.</div>
+                    <div class="alert alert-warning">The folder is not writable, so <code>config.php</code> cannot be created automatically. Create it from <code>config.sample.php</code> in File Manager.</div>
                 <?php endif; ?>
                 <form method="post" autocomplete="off">
                     <div class="mb-3">
@@ -162,7 +160,7 @@ if (!$installed && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                         <label class="form-label">Database password</label>
                         <input type="password" class="form-control" name="db_pass" required>
                     </div>
-                    <button class="btn btn-primary w-100 btn-lg">Install Vivora Healthcare</button>
+                    <button class="btn btn-primary w-100 btn-lg">Install dashboard</button>
                 </form>
             <?php endif; ?>
         </div>

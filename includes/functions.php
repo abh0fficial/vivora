@@ -1,6 +1,6 @@
 <?php
 /**
- * Vivora Healthcare - helper functions shared by the website, dashboard and installer.
+ * Vivora Healthcare - helper functions shared by the dashboard and installer.
  */
 
 declare(strict_types=1);
@@ -275,20 +275,6 @@ function excerpt(?string $text, int $length = 120): string
     return rtrim(mb_substr($text, 0, $length)) . '…';
 }
 
-/** Parse "Key: Value" lines into an associative list for spec tables. */
-function parse_specs(?string $specs): array
-{
-    $rows = [];
-    foreach (preg_split('/\r\n|\r|\n/', (string) $specs) as $line) {
-        $line = trim($line);
-        if ($line === '') {
-            continue;
-        }
-        $parts = explode(':', $line, 2);
-        $rows[] = count($parts) === 2 ? [trim($parts[0]), trim($parts[1])] : ['', $line];
-    }
-    return $rows;
-}
 
 /* ------------------------------------------------------------------ */
 /* Settings                                                            */
@@ -317,17 +303,6 @@ function save_setting(string $key, string $value): void
     q('INSERT INTO settings (skey, svalue) VALUES (?, ?) ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)', [$key, $value]);
 }
 
-function whatsapp_link(string $text = ''): string
-{
-    $num = preg_replace('/\D+/', '', setting('whatsapp'));
-    if ($num === '') {
-        return '';
-    }
-    if (strlen($num) === 10) {
-        $num = '91' . $num;
-    }
-    return 'https://wa.me/' . $num . ($text !== '' ? '?text=' . rawurlencode($text) : '');
-}
 
 function tel_link(string $phone): string
 {
@@ -484,4 +459,14 @@ function amount_in_words(float $amount): string
     $text = 'Rupees ' . $words($rupees);
     if ($paise > 0) $text .= ' and ' . $two($paise) . ' Paise';
     return $text . ' Only';
+}
+
+/** How an enquiry reached us (manual entry in the dashboard). */
+function enquiry_sources(): array
+{
+    return [
+        'phone' => 'Phone call', 'whatsapp' => 'WhatsApp', 'email' => 'Email', 'walk_in' => 'Walk-in / Visit',
+        'referral' => 'Referral', 'tender' => 'Tender', 'dealer' => 'Dealer', 'other' => 'Other',
+        'contact' => 'Contact form', 'quote' => 'Quote request', 'product' => 'Product enquiry',
+    ];
 }

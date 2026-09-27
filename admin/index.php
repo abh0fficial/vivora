@@ -54,13 +54,13 @@ $recentEnquiries = q_all('SELECT e.*, p.name product_name FROM enquiries e LEFT 
 $lowStockItems = q_all('SELECT p.id, p.name, p.sku, p.stock_qty, p.min_stock, p.image, c.icon FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.is_active = 1 AND p.min_stock > 0 AND p.stock_qty <= p.min_stock ORDER BY p.stock_qty ASC, p.name LIMIT 6');
 $recentService = q_all("SELECT * FROM service_requests ORDER BY FIELD(status,'open','scheduled','in_progress','resolved','closed'), created_at DESC LIMIT 5");
 $recentQuotes = q_all('SELECT * FROM quotations ORDER BY created_at DESC LIMIT 5');
-$topProducts = q_all('SELECT p.id, p.name, p.views, COUNT(e.id) enquiries FROM products p LEFT JOIN enquiries e ON e.product_id = p.id WHERE p.is_active = 1 GROUP BY p.id ORDER BY enquiries DESC, p.views DESC LIMIT 5');
+$topProducts = q_all('SELECT p.id, p.name, p.views, COUNT(e.id) enquiries FROM products p LEFT JOIN enquiries e ON e.product_id = p.id WHERE p.is_active = 1 GROUP BY p.id ORDER BY enquiries DESC, p.name LIMIT 5');
 $activity = q_all('SELECT a.*, ad.username FROM activity_log a LEFT JOIN admins ad ON ad.id = a.admin_id ORDER BY a.created_at DESC LIMIT 6');
 
 $pageTitle = 'Dashboard';
 $activeNav = 'dashboard';
 $breadcrumbs = ['Dashboard' => null];
-$pageActions = '<a href="product-form.php" class="btn btn-primary"><i class="feather-plus me-2"></i>Add Product</a>'
+$pageActions = '<a href="enquiry-form.php" class="btn btn-light-brand"><i class="feather-inbox me-2"></i>Add Enquiry</a><a href="product-form.php" class="btn btn-primary"><i class="feather-plus me-2"></i>Add Product</a>'
     . '<a href="quotation-form.php" class="btn btn-light-brand"><i class="feather-file-plus me-2"></i>New Quotation</a>';
 $extraJs = ['vendors/js/apexcharts.min.js'];
 require __DIR__ . '/partials/header.php';
@@ -163,7 +163,7 @@ $cards = [
             </div>
             <div class="card-body custom-card-action p-0">
                 <?php if (!$recentEnquiries): ?>
-                    <div class="vh-empty"><i class="feather-inbox"></i>No enquiries yet. They'll appear here when customers use the quote or contact forms on your website.</div>
+                    <div class="vh-empty"><i class="feather-inbox"></i>No enquiries yet. <a href="enquiry-form.php">Add your first enquiry</a>.</div>
                 <?php else: ?>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
@@ -176,7 +176,7 @@ $cards = [
                                     <span class="fs-12 text-muted"><?= e($r['organization'] ?: $r['phone']) ?></span>
                                 </td>
                                 <td><?= e($r['product_name'] ?: ($r['subject'] ?: '—')) ?></td>
-                                <td><span class="badge bg-gray-200 text-dark"><?= e(ucfirst($r['source'])) ?></span></td>
+                                <td><span class="badge bg-gray-200 text-dark"><?= e(enquiry_sources()[$r['source']] ?? ucfirst($r['source'])) ?></span></td>
                                 <td><?= status_badge($r['status']) ?></td>
                                 <td class="text-end fs-12 text-muted"><?= e(time_ago($r['created_at'])) ?></td>
                             </tr>
@@ -270,7 +270,7 @@ $cards = [
                             <span class="avatar-text avatar-sm bg-soft-primary text-primary"><?= $i + 1 ?></span>
                             <a href="product-form.php?id=<?= (int) $p['id'] ?>" class="text-dark fw-semibold text-truncate-1-line"><?= e($p['name']) ?></a>
                         </div>
-                        <span class="fs-12 text-muted text-nowrap"><?= (int) $p['enquiries'] ?> enq · <?= (int) $p['views'] ?> views</span>
+                        <span class="fs-12 text-muted text-nowrap"><?= (int) $p['enquiries'] ?> enquir<?= (int) $p['enquiries'] === 1 ? 'y' : 'ies' ?></span>
                     </div>
                 <?php endforeach; ?>
             </div>

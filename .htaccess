@@ -1,4 +1,8 @@
-# Vivora Healthcare – Apache / LiteSpeed rules (Hostinger)
+# Vivora Healthcare dashboard – Apache / LiteSpeed rules (Hostinger)
+# Keep the private dashboard out of search engines.
+<IfModule mod_headers.c>
+    Header always set X-Robots-Tag "noindex, nofollow"
+</IfModule>
 Options -Indexes
 DirectoryIndex index.php
 
@@ -10,7 +14,7 @@ DirectoryIndex index.php
     # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
     # Block direct access to internal folders and files.
-    RewriteRule ^(includes|partials|admin/partials)(/|$) - [F,L]
+    RewriteRule ^(includes|admin/partials)(/|$) - [F,L]
     RewriteRule (^|/)\.(git|github|env) - [F,L]
     RewriteRule ^(config\.php|config\.sample\.php|README\.md|composer\.(json|lock))$ - [F,L]
 </IfModule>
@@ -45,4 +49,3 @@ DirectoryIndex index.php
     php_value upload_max_filesize 16M
     php_value post_max_size 20M
 </IfModule>
-ErrorDocument 404 /404.php

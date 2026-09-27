@@ -21,7 +21,8 @@ foreach (q_all('SELECT status, COUNT(*) c FROM enquiries GROUP BY status') as $r
 $pageTitle = 'Enquiries';
 $activeNav = 'enquiries';
 $breadcrumbs = ['Enquiries' => null];
-$pageActions = '<a href="export.php?type=enquiries" class="btn btn-light-brand"><i class="feather-download me-2"></i>Export CSV</a>';
+$pageActions = '<a href="export.php?type=enquiries" class="btn btn-light-brand"><i class="feather-download me-2"></i>Export CSV</a>'
+    . '<a href="enquiry-form.php" class="btn btn-primary"><i class="feather-plus me-2"></i>Add Enquiry</a>';
 $extraCss = ['vendors/css/dataTables.bs5.min.css'];
 $extraJs = ['vendors/js/dataTables.min.js', 'vendors/js/dataTables.bs5.min.js'];
 require __DIR__ . '/partials/header.php';
@@ -45,7 +46,7 @@ require __DIR__ . '/partials/header.php';
     </div>
     <div class="card-body">
         <?php if (!$rows): ?>
-            <div class="vh-empty"><i class="feather-inbox"></i>No enquiries here yet. Customers can send enquiries from product pages, the “Request a Quote” page and the contact form on your website.</div>
+            <div class="vh-empty"><i class="feather-inbox"></i>No enquiries here yet. <a href="enquiry-form.php">Add an enquiry</a> when a customer calls, emails, WhatsApps or visits.</div>
         <?php else: ?>
         <div class="table-responsive">
             <table class="table table-hover" id="enqTable">
@@ -59,7 +60,7 @@ require __DIR__ . '/partials/header.php';
                             <span class="fs-12 text-muted fw-normal"><?= e(trim($r['organization'] . ($r['city'] ? ', ' . $r['city'] : ''), ', ')) ?></span>
                         </td>
                         <td class="fs-12 fw-normal"><?= e($r['phone']) ?><br><span class="text-muted"><?= e($r['email']) ?></span></td>
-                        <td class="fw-normal"><?= e($r['product_name'] ?: ($r['subject'] ?: ucfirst($r['source']) . ' enquiry')) ?></td>
+                        <td class="fw-normal"><?= e($r['product_name'] ?: ($r['subject'] ?: (enquiry_sources()[$r['source']] ?? ucfirst($r['source'])) . ' enquiry')) ?></td>
                         <td class="fw-normal"><?= $r['quantity'] ? (int) $r['quantity'] : '—' ?></td>
                         <td><?= status_badge($r['status']) ?></td>
                         <td class="fs-12 fw-normal" data-order="<?= e($r['created_at']) ?>"><?= e(fmt_date($r['created_at'], 'd M Y')) ?><br><span class="text-muted"><?= e(time_ago($r['created_at'])) ?></span></td>

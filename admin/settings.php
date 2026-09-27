@@ -9,35 +9,19 @@ $groups = [
         'gstin' => ['GSTIN', 'text'],
         'business_hours' => ['Business hours', 'text'],
     ],
-    'Contact details (shown on website & quotations)' => [
+    'Contact details (printed on quotations)' => [
         'phone' => ['Primary phone', 'text'],
         'phone2' => ['Alternate phone', 'text'],
         'whatsapp' => ['WhatsApp number (with country code, e.g. 919876543210)', 'text'],
         'email' => ['Email', 'email'],
         'address' => ['Address', 'textarea'],
         'city' => ['City / State / PIN', 'text'],
-        'map_embed_url' => ['Google Maps embed URL (optional)', 'url'],
-    ],
-    'Website content' => [
-        'hero_title' => ['Home page headline', 'text'],
-        'hero_subtitle' => ['Home page sub-headline', 'textarea'],
-        'about_text' => ['About us', 'textarea'],
-        'meta_description' => ['SEO description', 'textarea'],
-    ],
-    'Social links' => [
-        'facebook' => ['Facebook URL', 'url'],
-        'instagram' => ['Instagram URL', 'url'],
-        'linkedin' => ['LinkedIn URL', 'url'],
-        'youtube' => ['YouTube URL', 'url'],
     ],
     'Quotations' => [
         'quote_prefix' => ['Quotation number prefix', 'text'],
         'quote_validity_days' => ['Default validity (days)', 'number'],
         'quote_terms' => ['Default terms & conditions', 'textarea'],
         'bank_details' => ['Bank details (printed on quotations)', 'textarea'],
-    ],
-    'Notifications' => [
-        'notify_email' => ['Email me new enquiries & service requests at (uses PHP mail on Hostinger)', 'email'],
     ],
 ];
 

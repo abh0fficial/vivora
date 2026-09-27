@@ -22,7 +22,7 @@ require __DIR__ . '/partials/header.php';
                 <?php foreach ($rows as $r): ?>
                     <tr>
                         <td class="fs-12 text-nowrap"><?= e(fmt_date($r['created_at'], 'd M Y, h:i A')) ?><br><span class="text-muted"><?= e(time_ago($r['created_at'])) ?></span></td>
-                        <td><?= e($r['username'] ?: 'Website') ?></td>
+                        <td><?= e($r['username'] ?: 'System') ?></td>
                         <td><span class="badge bg-gray-200 text-dark"><?= e($r['action']) ?></span></td>
                         <td><?= e($r['details']) ?></td>
                         <td class="fs-12 text-muted"><?= e($r['ip']) ?></td>

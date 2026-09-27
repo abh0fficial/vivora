@@ -53,7 +53,7 @@ $waText = 'Hello ' . $enq['name'] . ', thank you for your enquiry' . ($enq['prod
 $pageTitle = 'Enquiry #' . $id;
 $activeNav = 'enquiries';
 $breadcrumbs = ['Enquiries' => 'enquiries.php', '#' . $id => null];
-$pageActions = '<a href="quotation-form.php?enquiry_id=' . $id . '" class="btn btn-primary"><i class="feather-file-plus me-2"></i>Create quotation</a>';
+$pageActions = '<a href="enquiry-form.php?id=' . $id . '" class="btn btn-light-brand"><i class="feather-edit-3 me-2"></i>Edit</a><a href="quotation-form.php?enquiry_id=' . $id . '" class="btn btn-primary"><i class="feather-file-plus me-2"></i>Create quotation</a>';
 require __DIR__ . '/partials/header.php';
 ?>
 <div class="row">
@@ -68,10 +68,10 @@ require __DIR__ . '/partials/header.php';
                     <div class="col-md-6"><dt>Phone</dt><dd><?= $enq['phone'] ? '<a href="' . e(tel_link($enq['phone'])) . '">' . e($enq['phone']) . '</a>' : '—' ?></dd></div>
                     <div class="col-md-6"><dt>Email</dt><dd><?= $enq['email'] ? '<a href="mailto:' . e($enq['email']) . '">' . e($enq['email']) . '</a>' : '—' ?></dd></div>
                     <div class="col-md-6"><dt>City</dt><dd><?= e($enq['city'] ?: '—') ?></dd></div>
-                    <div class="col-md-6"><dt>Source</dt><dd><?= e(ucfirst($enq['source'])) ?> form</dd></div>
+                    <div class="col-md-6"><dt>Source</dt><dd><?= e(enquiry_sources()[$enq['source']] ?? ucfirst($enq['source'])) ?></dd></div>
                     <div class="col-md-6"><dt>Product</dt><dd>
                         <?php if ($enq['product_name']): ?>
-                            <a href="<?= e(base_url('product.php?slug=' . rawurlencode($enq['product_slug']))) ?>" target="_blank"><?= e($enq['product_name']) ?></a>
+                            <a href="product-form.php?id=<?= (int) $enq['product_id'] ?>"><?= e($enq['product_name']) ?></a>
                         <?php else: ?><?= e($enq['subject'] ?: '—') ?><?php endif; ?>
                     </dd></div>
                     <div class="col-md-6"><dt>Quantity</dt><dd><?= $enq['quantity'] ? (int) $enq['quantity'] : '—' ?></dd></div>

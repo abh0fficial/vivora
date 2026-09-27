@@ -17,11 +17,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 break;
             case 'toggle_active':
                 q('UPDATE products SET is_active = 1 - is_active WHERE id = ?', [$id]);
-                flash('success', 'Product "' . $product['name'] . '" is now ' . ($product['is_active'] ? 'hidden from' : 'visible on') . ' the website.');
-                break;
-            case 'toggle_featured':
-                q('UPDATE products SET is_featured = 1 - is_featured WHERE id = ?', [$id]);
-                flash('success', 'Product "' . $product['name'] . '" ' . ($product['is_featured'] ? 'removed from' : 'added to') . ' featured products.');
+                flash('success', 'Product "' . $product['name'] . '" is now ' . ($product['is_active'] ? 'inactive' : 'active') . '.');
                 break;
         }
     }
@@ -44,7 +40,6 @@ if ($catId) {
 }
 if ($status === 'active') $where[] = 'p.is_active = 1';
 if ($status === 'hidden') $where[] = 'p.is_active = 0';
-if ($status === 'featured') $where[] = 'p.is_featured = 1';
 
 $products = q_all('SELECT p.*, c.name category_name, c.icon,
         (SELECT COUNT(*) FROM enquiries e WHERE e.product_id = p.id) enquiry_count
@@ -55,7 +50,7 @@ $categories = q_all('SELECT id, name FROM categories ORDER BY sort_order, name')
 $pageTitle = 'Products';
 $activeNav = 'products';
 $breadcrumbs = ['Products' => null];
-$pageActions = '<a href="categories.php" class="btn btn-light-brand"><i class="feather-grid me-2"></i>Categories</a>'
+$pageActions = '<a href="export.php?type=products" class="btn btn-light-brand"><i class="feather-download me-2"></i>Export CSV</a><a href="categories.php" class="btn btn-light-brand"><i class="feather-grid me-2"></i>Categories</a>'
     . '<a href="product-form.php" class="btn btn-primary"><i class="feather-plus me-2"></i>Add Product</a>';
 $extraCss = ['vendors/css/dataTables.bs5.min.css'];
 $extraJs = ['vendors/js/dataTables.min.js', 'vendors/js/dataTables.bs5.min.js'];
@@ -76,9 +71,8 @@ require __DIR__ . '/partials/header.php';
             <div class="col-md-3">
                 <select name="status" class="form-select">
                     <option value="">Any status</option>
-                    <option value="active" <?= $status === 'active' ? 'selected' : '' ?>>Visible on website</option>
-                    <option value="hidden" <?= $status === 'hidden' ? 'selected' : '' ?>>Hidden</option>
-                    <option value="featured" <?= $status === 'featured' ? 'selected' : '' ?>>Featured</option>
+                    <option value="active" <?= $status === 'active' ? 'selected' : '' ?>>Active</option>
+                    <option value="hidden" <?= $status === 'hidden' ? 'selected' : '' ?>>Inactive</option>
                 </select>
             </div>
             <div class="col-md-2 d-flex gap-2">
@@ -130,19 +124,16 @@ require __DIR__ . '/partials/header.php';
                         </td>
                         <td><?= (int) $p['enquiry_count'] ?></td>
                         <td>
-                            <?= $p['is_active'] ? '<span class="badge bg-soft-success text-success">Visible</span>' : '<span class="badge bg-soft-secondary text-secondary">Hidden</span>' ?>
-                            <?= $p['is_featured'] ? '<span class="badge bg-soft-warning text-warning ms-1">Featured</span>' : '' ?>
+                            <?= $p['is_active'] ? '<span class="badge bg-soft-success text-success">Active</span>' : '<span class="badge bg-soft-secondary text-secondary">Inactive</span>' ?>
                         </td>
                         <td class="text-end">
                             <div class="hstack gap-2 justify-content-end">
-                                <a href="<?= base_url('product.php?slug=' . rawurlencode($p['slug'])) ?>" target="_blank" class="avatar-text avatar-md" title="View on website"><i class="feather-eye"></i></a>
                                 <a href="product-form.php?id=<?= (int) $p['id'] ?>" class="avatar-text avatar-md" title="Edit"><i class="feather-edit-3"></i></a>
                                 <div class="dropdown">
                                     <a href="javascript:void(0)" class="avatar-text avatar-md" data-bs-toggle="dropdown"><i class="feather-more-horizontal"></i></a>
                                     <div class="dropdown-menu dropdown-menu-end">
                                         <form method="post"><?= csrf_field() ?><input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
-                                            <button class="dropdown-item" name="action" value="toggle_featured"><i class="feather-star me-2"></i><?= $p['is_featured'] ? 'Unfeature' : 'Mark as featured' ?></button>
-                                            <button class="dropdown-item" name="action" value="toggle_active"><i class="feather-<?= $p['is_active'] ? 'eye-off' : 'eye' ?> me-2"></i><?= $p['is_active'] ? 'Hide from website' : 'Show on website' ?></button>
+                                            <button class="dropdown-item" name="action" value="toggle_active"><i class="feather-<?= $p['is_active'] ? 'eye-off' : 'eye' ?> me-2"></i><?= $p['is_active'] ? 'Mark inactive' : 'Mark active' ?></button>
                                         </form>
                                         <a class="dropdown-item" href="quotation-form.php?product_id=<?= (int) $p['id'] ?>"><i class="feather-file-plus me-2"></i>Create quotation</a>
                                         <div class="dropdown-divider"></div>

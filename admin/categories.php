@@ -79,7 +79,7 @@ require __DIR__ . '/partials/header.php';
                                     </div>
                                 </td>
                                 <td><a href="products.php?category=<?= (int) $c['id'] ?>"><?= (int) $c['product_count'] ?></a></td>
-                                <td><?= $c['is_active'] ? '<span class="badge bg-soft-success text-success">Visible</span>' : '<span class="badge bg-soft-secondary text-secondary">Hidden</span>' ?></td>
+                                <td><?= $c['is_active'] ? '<span class="badge bg-soft-success text-success">Active</span>' : '<span class="badge bg-soft-secondary text-secondary">Inactive</span>' ?></td>
                                 <td class="text-end">
                                     <div class="hstack gap-2 justify-content-end">
                                         <a href="product-form.php?category=<?= (int) $c['id'] ?>" class="avatar-text avatar-md" title="Add product"><i class="feather-plus"></i></a>
@@ -129,7 +129,7 @@ require __DIR__ . '/partials/header.php';
                     </div>
                     <div class="form-check form-switch mb-4">
                         <input class="form-check-input" type="checkbox" id="cat_active" name="is_active" <?= $form['is_active'] ? 'checked' : '' ?>>
-                        <label class="form-check-label" for="cat_active">Visible on website</label>
+                        <label class="form-check-label" for="cat_active">Active</label>
                     </div>
                     <div class="d-flex gap-2">
                         <button class="btn btn-primary flex-fill"><?= $editing ? 'Update' : 'Add' ?> category</button>

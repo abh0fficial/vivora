@@ -60,11 +60,11 @@ $company = setting('company_name', 'Vivora Healthcare');
         <div class="auth-cover-card-wrapper">
             <div class="auth-cover-card p-sm-5">
                 <div class="mb-5">
-                    <a href="<?= base_url('index.php') ?>"><img src="<?= asset('images/logo-full.png') ?>" alt="<?= e($company) ?>" class="img-fluid" style="max-width:260px"></a>
+                    <img src="<?= asset('images/logo-full.png') ?>" alt="<?= e($company) ?>" class="img-fluid" style="max-width:260px">
                 </div>
                 <h2 class="fs-20 fw-bolder mb-4">Dashboard Login</h2>
                 <h4 class="fs-13 fw-bold mb-2">Sign in to manage your business</h4>
-                <p class="fs-12 fw-medium text-muted">Products, enquiries, quotations, customers and service requests — all in one place.</p>
+                <p class="fs-12 fw-medium text-muted">Products, inventory, enquiries, quotations, customers and service — all in one place.</p>
                 <?php if ($error !== ''): ?>
                     <div class="alert alert-danger py-2 fs-12 mt-3"><?= e($error) ?></div>
                 <?php endif; ?>
@@ -86,9 +86,6 @@ $company = setting('company_name', 'Vivora Healthcare');
                         <button type="submit" class="btn btn-lg btn-primary w-100">Login</button>
                     </div>
                 </form>
-                <div class="mt-5 text-muted fs-12">
-                    <a href="<?= base_url('index.php') ?>" class="fw-semibold"><i class="feather-arrow-left me-1"></i>Back to website</a>
-                </div>
             </div>
         </div>
     </div>

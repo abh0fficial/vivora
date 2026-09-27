@@ -24,7 +24,10 @@ $nav = [
     ]],
     ['key' => 'inventory', 'label' => 'Inventory', 'icon' => 'layers', 'url' => 'inventory.php', 'badge' => $lowStock, 'badgeColor' => 'warning'],
     ['caption' => 'Sales & CRM'],
-    ['key' => 'enquiries', 'label' => 'Enquiries', 'icon' => 'inbox', 'url' => 'enquiries.php', 'badge' => $newEnquiries, 'badgeColor' => 'primary'],
+    ['key' => 'enquiries', 'label' => 'Enquiries', 'icon' => 'inbox', 'badge' => $newEnquiries, 'children' => [
+        ['key' => 'enquiries', 'label' => 'All Enquiries', 'url' => 'enquiries.php'],
+        ['key' => 'enquiry-new', 'label' => 'Add Enquiry', 'url' => 'enquiry-form.php'],
+    ]],
     ['key' => 'quotations', 'label' => 'Quotations', 'icon' => 'file-text', 'children' => [
         ['key' => 'quotations', 'label' => 'All Quotations', 'url' => 'quotations.php'],
         ['key' => 'quotation-new', 'label' => 'Create Quotation', 'url' => 'quotation-form.php'],
@@ -93,7 +96,9 @@ function nav_is_active(array $item, string $active): bool
                         <li class="nxl-item nxl-hasmenu<?= $isActive ? ' active nxl-trigger' : '' ?>">
                             <a href="javascript:void(0);" class="nxl-link">
                                 <span class="nxl-micon"><i class="feather-<?= e($item['icon']) ?>"></i></span>
-                                <span class="nxl-mtext"><?= e($item['label']) ?></span><span class="nxl-arrow"><i class="feather-chevron-right"></i></span>
+                                <span class="nxl-mtext"><?= e($item['label']) ?></span>
+                                <?php if (!empty($item['badge'])): ?><span class="badge bg-primary ms-auto me-2 vh-nav-badge"><?= (int) $item['badge'] ?></span><?php endif; ?>
+                                <span class="nxl-arrow"><i class="feather-chevron-right"></i></span>
                             </a>
                             <ul class="nxl-submenu">
                                 <?php foreach ($item['children'] as $child): ?>
@@ -114,14 +119,6 @@ function nav_is_active(array $item, string $active): bool
                     <?php endif; ?>
                 <?php endforeach; ?>
             </ul>
-            <div class="card text-center vh-sidebar-card">
-                <div class="card-body">
-                    <i class="feather-globe fs-4 text-primary"></i>
-                    <h6 class="mt-3 text-dark fw-bolder">Your website</h6>
-                    <p class="fs-11 my-3 text-muted">See what customers see — products, quote and service forms.</p>
-                    <a href="<?= base_url('index.php') ?>" target="_blank" class="btn btn-primary w-100">Open Website</a>
-                </div>
-            </div>
         </div>
     </div>
 </nav>
@@ -147,11 +144,6 @@ function nav_is_active(array $item, string $active): bool
         </div>
         <div class="header-right ms-auto">
             <div class="d-flex align-items-center">
-                <div class="nxl-h-item d-none d-sm-flex">
-                    <a href="<?= base_url('index.php') ?>" target="_blank" class="nxl-head-link me-0" data-bs-toggle="tooltip" title="View website">
-                        <i class="feather-external-link"></i>
-                    </a>
-                </div>
                 <div class="nxl-h-item d-none d-sm-flex">
                     <div class="full-screen-switcher">
                         <a href="javascript:void(0);" class="nxl-head-link me-0" onclick="$('body').fullScreenHelper('toggle');">

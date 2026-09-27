@@ -1,35 +1,24 @@
-# Vivora Healthcare — Website & Business Dashboard
+# Vivora Healthcare — Business Dashboard
 
 **Better Equipment. Healthier Tomorrows.**
 
-This is the company website and admin dashboard for Vivora Healthcare, a medical equipment supplier. It is written in plain PHP 8 with MySQL and needs no Composer or Node.js, so it runs on standard Hostinger shared hosting.
+This is the admin dashboard for Vivora Healthcare, a medical equipment supplier. It is written in plain PHP 8 with MySQL and needs no Composer or Node.js, so it runs on standard Hostinger shared hosting.
 
 ## What's included
 
-### Public website
-- **Home page** with the Vivora branding, product categories, featured equipment and a "Who we serve" section
-- **Product catalogue** with category filters, search, sorting and pagination
-- **Product pages** with specifications table, brochure download, WhatsApp/Call buttons and a quote form
-- **Request a Quote** and **Contact** forms. Submissions are saved as enquiries in the dashboard.
-- **Service & Support**: customers raise installation, repair, AMC, calibration or training tickets and get a ticket number
-- Floating WhatsApp button, SEO meta tags, `sitemap.php` and `robots.txt`
-- Spam protection on every form: CSRF token, honeypot field, time check and per-IP rate limit
+This is a private business dashboard only. There is no public website: opening your domain takes you straight to the dashboard login. The dashboard is built on the Duralux admin theme, recoloured to Vivora navy and teal.
 
-The product categories are ECG Machines, ECG Diagnostic Papers, Patient Monitors, Defibrillators, Ultrasound Systems, Surgical Instruments, Medical Equipment, Diagnostic Machines, Surgical Accessories, Healthcare Consumables and Hospital Accessories. You can add more from the dashboard.
-
-### Dashboard (`/admin`)
-The dashboard is built on the Duralux admin theme, recoloured to Vivora navy and teal.
-- **Secure login**: hashed passwords, session timeout, and a 15-minute lockout after 5 failed attempts
+- **Secure login**: hashed passwords, session timeout, and a 15-minute lockout after 5 failed attempts. Search engines are told not to index the dashboard.
 - **Dashboard**: live stats, a 12-month enquiries/service/sales chart, enquiries by category, pipeline, low-stock alerts, service desk and recent activity
-- **Products**: add, edit or delete products, with image and PDF brochure upload, price, GST, SKU, brand/model, specifications, featured flag and show/hide price
-- **Categories**: add, edit, delete, reorder, and pick an icon for each
+- **Products**: add, edit or delete products, with image and PDF brochure upload, price, GST, SKU, brand/model, specifications and active/inactive status
+- **Categories**: seeded with ECG Machines, ECG Diagnostic Papers, Patient Monitors, Defibrillators, Ultrasound Systems, Surgical Instruments, Medical Equipment, Diagnostic Machines, Surgical Accessories, Healthcare Consumables and Hospital Accessories. You can add more.
 - **Inventory**: stock in/out/set with a movement log and stock value. Alerts only fire for products with a minimum stock above 0.
-- **Enquiries**: status pipeline (New → Contacted → Quoted → Won/Lost), notes, Call/WhatsApp/Email buttons, and one-click "Save as customer"
+- **Enquiries**: log enquiries received by phone, WhatsApp, email, walk-in, referral, tender or dealer. Track them through the pipeline (New → Contacted → Quoted → Won/Lost), add notes, use the Call/WhatsApp/Email buttons, and save the contact as a customer with one click.
 - **Quotations**: GST-aware quote builder with discount, amount in words, printable/PDF layout, WhatsApp/email share and duplicate. Accepting a quote marks its enquiry as Won.
 - **Customers**: records for hospitals, clinics, diagnostic centres and dealers, with their quote and enquiry history
-- **Service requests**: ticketing with priority, assigned engineer, visit date and notes
+- **Service requests**: installation, repair, AMC, calibration and training tickets, with priority, assigned engineer, visit date and notes
 - **Reports**: sales, enquiries and service reports for any date range
-- **Company settings**: phone, WhatsApp, email, address, GSTIN, social links, home-page text, quotation terms, bank details and email notifications
+- **Company settings**: phone, email, address, GSTIN, quotation terms and bank details (printed on quotations)
 - **CSV export** for Excel, **Activity log**, **My Profile** (change username or password), and dark mode
 
 ## Deploy on Hostinger
@@ -53,21 +42,20 @@ Download the repository as a ZIP from GitHub, upload it in **File Manager → pu
 > 🔒 `config.php`, which holds the database password, is listed in `.gitignore`, so the password is never pushed to GitHub. Keep it that way, because this repository is public.
 
 ### 3. Log in and finish setup
-- Dashboard: `https://your-domain/admin/`
+- Dashboard: `https://your-domain/`, which redirects to `/admin/`
 - Username **`admin`**, password **`admin123`**. Change this right away in **My Profile**.
-- Fill in **Company Settings** (phone, WhatsApp, email, address, GSTIN). They appear across the website and on quotations.
+- Fill in **Company Settings** (phone, email, address, GSTIN, bank details). They are printed on your quotations.
 - Edit the starter products: add prices, stock, images and brochures.
 - Turn on SSL in hPanel, then uncomment the HTTPS redirect lines in `.htaccess`.
 
 ## Why not GitHub Pages?
-GitHub Pages only serves static HTML. This site needs PHP and MySQL for the login, dashboard and forms. GitHub holds the code, and Hostinger runs it.
+GitHub Pages only serves static HTML. The dashboard needs PHP and MySQL. GitHub holds the code, and Hostinger runs it.
 
 ## Folder structure
 ```
-index.php, products.php, product.php, service.php, contact.php, about.php   ← public website
-admin/            ← dashboard (login protected)
+index.php         ← redirects to the dashboard
+admin/            ← dashboard pages (login protected)
 includes/         ← bootstrap, DB, helpers, auth, schema (web access blocked)
-partials/         ← website header/footer/product card (web access blocked)
 assets/           ← CSS, JS, fonts, logo (Duralux theme recoloured to Vivora brand)
 uploads/          ← product images & brochures (script execution disabled)
 install.php       ← one-time installer

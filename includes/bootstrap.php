@@ -2,7 +2,7 @@
 /**
  * Vivora Healthcare - application bootstrap.
  * Loads config, opens the database connection, starts the session and
- * provides the small helper library used by the website and the dashboard.
+ * provides the small helper library used by the dashboard.
  */
 
 declare(strict_types=1);

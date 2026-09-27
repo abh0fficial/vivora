@@ -42,7 +42,7 @@ $prioColor = ['urgent' => 'danger', 'high' => 'warning', 'normal' => 'info', 'lo
     </div>
     <div class="card-body">
         <?php if (!$rows): ?>
-            <div class="vh-empty"><i class="feather-tool"></i>No service requests. Customers can raise tickets from the “Service & Support” page on your website.</div>
+            <div class="vh-empty"><i class="feather-tool"></i>No service requests yet. <a href="service-view.php">Create a ticket</a> for installations, repairs, AMC visits or calibration.</div>
         <?php else: ?>
         <div class="table-responsive">
             <table class="table table-hover" id="svcTable">
