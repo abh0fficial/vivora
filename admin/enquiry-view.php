@@ -77,7 +77,6 @@ require __DIR__ . '/partials/header.php';
                     <div class="col-md-6"><dt>Quantity</dt><dd><?= $enq['quantity'] ? (int) $enq['quantity'] : '—' ?></dd></div>
                     <div class="col-12"><dt>Message</dt><dd style="white-space:pre-line"><?= e($enq['message'] ?: '—') ?></dd></div>
                     <div class="col-md-6"><dt>Received</dt><dd><?= e(fmt_date($enq['created_at'], 'd M Y, h:i A')) ?> (<?= e(time_ago($enq['created_at'])) ?>)</dd></div>
-                    <div class="col-md-6"><dt>IP address</dt><dd class="fs-12 text-muted"><?= e($enq['ip'] ?: '—') ?></dd></div>
                 </dl>
             </div>
             <div class="card-footer d-flex flex-wrap gap-2">

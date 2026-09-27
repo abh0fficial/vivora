@@ -2,6 +2,18 @@
 require __DIR__ . '/../includes/auth.php';
 $admin = require_admin();
 
+// Delete straight from the list (with confirmation in the browser).
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && post('action') === 'delete') {
+    require_post();
+    $row = q_row('SELECT * FROM customers WHERE id = ?', [(int) post('id')]);
+    if ($row) {
+        q('DELETE FROM customers WHERE id = ?', [$row['id']]);
+        log_activity('customer.delete', 'Deleted customer ' . '"' . ($row['organization'] ?: $row['name']) . '"');
+        flash('success', 'Customer ' . '"' . ($row['organization'] ?: $row['name']) . '"' . ' deleted.');
+    }
+    redirect('admin/customers.php' . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : ''));
+}
+
 $types = customer_types();
 $type = array_key_exists(get('type'), $types) ? get('type') : '';
 $search = get('q');
@@ -45,7 +57,7 @@ require __DIR__ . '/partials/header.php';
             <table class="table table-hover" id="custTable">
                 <thead><tr><th>Customer</th><th>Type</th><th>Contact</th><th>City</th><th>Quotes</th><th>Revenue</th><th data-orderable="false"></th></tr></thead>
                 <tbody>
-                <?php foreach ($rows as $c): ?>
+                <?php foreach ($rows as $c): $r = $c; ?>
                     <tr>
                         <td>
                             <div class="d-flex align-items-center gap-3">
@@ -65,6 +77,9 @@ require __DIR__ . '/partials/header.php';
                             <div class="hstack gap-2 justify-content-end">
                                 <a href="quotation-form.php?customer_id=<?= (int) $c['id'] ?>" class="avatar-text avatar-md" title="New quotation"><i class="feather-file-plus"></i></a>
                                 <a href="customer-form.php?id=<?= (int) $c['id'] ?>" class="avatar-text avatar-md" title="Edit"><i class="feather-edit-3"></i></a>
+                                <form method="post" class="m-0" data-confirm="Delete this customer? Their quotations are kept."><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
+                                    <button class="avatar-text avatar-md border-0 text-danger" title="Delete"><i class="feather-trash-2"></i></button>
+                                </form>
                             </div>
                         </td>
                     </tr>

@@ -24,7 +24,12 @@ function current_admin(): ?array
             return null;
         }
         $_SESSION['last_seen'] = time();
-        $admin = q_row('SELECT id, username, full_name, email, last_login_at FROM admins WHERE id = ?', [(int) $_SESSION['admin_id']]);
+        try {
+            $admin = q_row('SELECT id, username, full_name, email, last_login_at, notifications_seen_at FROM admins WHERE id = ?', [(int) $_SESSION['admin_id']]);
+        } catch (PDOException $e) {
+            // Database not upgraded yet (System Check → Repair database fixes it).
+            $admin = q_row('SELECT id, username, full_name, email, last_login_at, NULL AS notifications_seen_at FROM admins WHERE id = ?', [(int) $_SESSION['admin_id']]);
+        }
     }
     return $admin;
 }
@@ -97,4 +102,46 @@ function require_post(): void
         exit('Method not allowed');
     }
     csrf_check();
+}
+
+/**
+ * Live notifications for the header bell: new enquiries, open service tickets,
+ * low-stock products and quotations about to expire. Items newer than the
+ * admin's "mark all as read" time count as unread.
+ */
+function admin_notifications(array $admin): array
+{
+    $items = [];
+    foreach (q_all("SELECT e.id, e.name, e.organization, e.subject, e.created_at, p.name product FROM enquiries e
+        LEFT JOIN products p ON p.id = e.product_id WHERE e.status = 'new' ORDER BY e.created_at DESC LIMIT 10") as $r) {
+        $items[] = ['icon' => 'inbox', 'color' => 'primary', 'time' => $r['created_at'], 'url' => 'enquiry-view.php?id=' . $r['id'],
+            'title' => 'New enquiry from ' . $r['name'], 'text' => trim(($r['product'] ?: $r['subject']) . ($r['organization'] ? ' · ' . $r['organization'] : ''), ' ·')];
+    }
+    $types = service_types();
+    foreach (q_all("SELECT id, ticket_no, request_type, priority, equipment, organization, name, created_at FROM service_requests
+        WHERE status = 'open' ORDER BY created_at DESC LIMIT 10") as $r) {
+        $items[] = ['icon' => 'tool', 'color' => in_array($r['priority'], ['high', 'urgent'], true) ? 'danger' : 'warning', 'time' => $r['created_at'],
+            'url' => 'service-view.php?id=' . $r['id'], 'title' => $r['ticket_no'] . ' · ' . ($types[$r['request_type']] ?? $r['request_type']) . ($r['priority'] === 'urgent' ? ' (urgent)' : ''),
+            'text' => trim(($r['equipment'] ?: 'Equipment') . ' · ' . ($r['organization'] ?: $r['name']), ' ·')];
+    }
+    foreach (q_all('SELECT p.id, p.name, p.stock_qty, p.min_stock,
+            COALESCE((SELECT MAX(m.created_at) FROM stock_movements m WHERE m.product_id = p.id), p.updated_at) changed_at
+        FROM products p WHERE p.is_active = 1 AND p.min_stock > 0 AND p.stock_qty <= p.min_stock ORDER BY changed_at DESC LIMIT 10') as $r) {
+        $items[] = ['icon' => 'alert-triangle', 'color' => 'danger', 'time' => $r['changed_at'], 'url' => 'product-form.php?id=' . $r['id'],
+            'title' => ($r['stock_qty'] <= 0 ? 'Out of stock: ' : 'Low stock: ') . $r['name'], 'text' => (int) $r['stock_qty'] . ' left · minimum ' . (int) $r['min_stock']];
+    }
+    foreach (q_all("SELECT id, quote_no, customer_org, customer_name, valid_until, updated_at FROM quotations
+        WHERE status = 'sent' AND valid_until BETWEEN CURDATE() AND (CURDATE() + INTERVAL 3 DAY) ORDER BY valid_until LIMIT 10") as $r) {
+        $items[] = ['icon' => 'clock', 'color' => 'info', 'time' => $r['updated_at'], 'url' => 'quotation-view.php?id=' . $r['id'],
+            'title' => 'Quotation ' . $r['quote_no'] . ' expires ' . fmt_date($r['valid_until']), 'text' => 'Follow up with ' . ($r['customer_org'] ?: $r['customer_name'])];
+    }
+    usort($items, fn($a, $b) => strcmp((string) $b['time'], (string) $a['time']));
+    $seen = $admin['notifications_seen_at'] ?? null;
+    $unread = 0;
+    foreach ($items as &$it) {
+        $it['unread'] = !$seen || (string) $it['time'] > (string) $seen;
+        $unread += $it['unread'] ? 1 : 0;
+    }
+    unset($it);
+    return ['items' => array_slice($items, 0, 15), 'unread' => $unread, 'total' => count($items)];
 }

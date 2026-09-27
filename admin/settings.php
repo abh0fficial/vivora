@@ -7,7 +7,6 @@ $groups = [
         'company_name' => ['Company name', 'text'],
         'tagline' => ['Tagline', 'text'],
         'gstin' => ['GSTIN', 'text'],
-        'business_hours' => ['Business hours', 'text'],
     ],
     'Contact details (printed on quotations)' => [
         'phone' => ['Primary phone', 'text'],
@@ -31,9 +30,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     foreach ($groups as $fields) {
         foreach ($fields as $key => [$label, $type]) {
             $val = post($key);
-            if ($type === 'url' && $val !== '' && !preg_match('~^https://~i', $val)) {
-                $errors[] = "$label must start with https://";
-                continue;
+            if ($type === 'url' && $val !== '') {
+                $val = preg_replace('~^http://~i', 'https://', $val);
+                if (!preg_match('~^https://~i', $val)) {
+                    $val = 'https://' . ltrim($val, '/');
+                }
             }
             if ($type === 'email' && $val !== '' && !filter_var($val, FILTER_VALIDATE_EMAIL)) {
                 $errors[] = "$label is not a valid email.";
@@ -67,7 +68,7 @@ require __DIR__ . '/partials/header.php';
                                 <?php if ($type === 'textarea'): ?>
                                     <textarea id="s_<?= $key ?>" name="<?= $key ?>" class="form-control" rows="<?= in_array($key, ['about_text', 'quote_terms'], true) ? 6 : 3 ?>"><?= e(setting($key)) ?></textarea>
                                 <?php else: ?>
-                                    <input id="s_<?= $key ?>" type="<?= $type === 'url' ? 'url' : $type ?>" name="<?= $key ?>" class="form-control" value="<?= e(setting($key)) ?>">
+                                    <input id="s_<?= $key ?>" type="<?= in_array($type, ['url', 'email'], true) ? 'text' : $type ?>" name="<?= $key ?>" class="form-control" value="<?= e(setting($key)) ?>">
                                 <?php endif; ?>
                             </div>
                         <?php endforeach; ?>

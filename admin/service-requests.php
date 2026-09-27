@@ -2,6 +2,18 @@
 require __DIR__ . '/../includes/auth.php';
 $admin = require_admin();
 
+// Delete straight from the list (with confirmation in the browser).
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && post('action') === 'delete') {
+    require_post();
+    $row = q_row('SELECT * FROM service_requests WHERE id = ?', [(int) post('id')]);
+    if ($row) {
+        q('DELETE FROM service_requests WHERE id = ?', [$row['id']]);
+        log_activity('service ticket.delete', 'Deleted service ticket ' . $row['ticket_no']);
+        flash('success', 'Service ticket ' . $row['ticket_no'] . ' deleted.');
+    }
+    redirect('admin/service-requests.php' . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : ''));
+}
+
 $types = service_types();
 $statuses = ['open', 'scheduled', 'in_progress', 'resolved', 'closed'];
 $status = in_array(get('status'), $statuses, true) ? get('status') : '';
@@ -46,7 +58,7 @@ $prioColor = ['urgent' => 'danger', 'high' => 'warning', 'normal' => 'info', 'lo
         <?php else: ?>
         <div class="table-responsive">
             <table class="table table-hover" id="svcTable">
-                <thead><tr><th>Ticket</th><th>Customer</th><th>Equipment</th><th>Type</th><th>Priority</th><th>Status</th><th>Engineer</th><th>Raised</th></tr></thead>
+                <thead><tr><th>Ticket</th><th>Customer</th><th>Equipment</th><th>Type</th><th>Priority</th><th>Status</th><th>Engineer</th><th>Raised</th><th data-orderable="false"></th></tr></thead>
                 <tbody>
                 <?php foreach ($rows as $r): ?>
                     <tr>
@@ -58,6 +70,14 @@ $prioColor = ['urgent' => 'danger', 'high' => 'warning', 'normal' => 'info', 'lo
                         <td><?= status_badge($r['status']) ?></td>
                         <td><?= e($r['engineer'] ?: '—') ?></td>
                         <td class="fs-12" data-order="<?= e($r['created_at']) ?>"><?= e(fmt_date($r['created_at'])) ?><br><span class="text-muted"><?= e(time_ago($r['created_at'])) ?></span></td>
+                        <td class="text-end">
+                            <div class="hstack gap-2 justify-content-end">
+                                <a href="service-view.php?id=<?= (int) $r['id'] ?>" class="avatar-text avatar-md" title="Open / edit"><i class="feather-edit-3"></i></a>
+                                <form method="post" class="m-0" data-confirm="Delete ticket <?= e($r['ticket_no']) ?>?"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
+                                    <button class="avatar-text avatar-md border-0 text-danger" title="Delete"><i class="feather-trash-2"></i></button>
+                                </form>
+                            </div>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

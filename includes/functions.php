@@ -69,6 +69,12 @@ function db(): PDO
                 PDO::ATTR_EMULATE_PREPARES   => false,
             ]);
             $pdo->exec("SET time_zone = '+05:30'");
+            // Same behaviour on every host (Hostinger MySQL 8 / MariaDB): no ONLY_FULL_GROUP_BY
+            // surprises, and over-long text is trimmed instead of making a save fail.
+            $pdo->exec("SET SESSION sql_mode = 'ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
+            if (function_exists('vivora_auto_upgrade')) {
+                vivora_auto_upgrade($pdo);
+            }
         } catch (PDOException $e) {
             http_response_code(500);
             error_log('Vivora DB connection failed: ' . $e->getMessage());
@@ -289,8 +295,9 @@ function setting(string $key, string $default = ''): string
             $cache[$row['skey']] = (string) $row['svalue'];
         }
     }
-    if (array_key_exists($key, $cache) && $cache[$key] !== '') {
-        return $cache[$key];
+    if (array_key_exists($key, $cache)) {
+        // A value the user saved (even an empty one) wins; $default only fills blanks for display.
+        return $cache[$key] !== '' ? $cache[$key] : $default;
     }
     if ($default === '' && function_exists('vivora_default_settings')) {
         return vivora_default_settings()[$key] ?? '';

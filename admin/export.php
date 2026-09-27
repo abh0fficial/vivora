@@ -11,7 +11,7 @@ $exports = [
         FROM quotations ORDER BY id DESC'],
     'service' => ['SELECT ticket_no, created_at, request_type, priority, status, name, organization, phone, email, city, equipment, brand_model, serial_no, preferred_date, engineer, description, notes
         FROM service_requests ORDER BY id DESC'],
-    'products' => ['SELECT p.sku, p.name, c.name category, p.brand, p.model, p.price, p.gst_rate, p.unit, p.stock_qty, p.min_stock, p.is_active, p.is_featured, p.views
+    'products' => ['SELECT p.sku, p.name, c.name category, p.brand, p.model, p.price, p.gst_rate, p.unit, p.stock_qty, p.min_stock, p.is_active
         FROM products p LEFT JOIN categories c ON c.id = p.category_id ORDER BY p.name'],
 ];
 $type = get('type');

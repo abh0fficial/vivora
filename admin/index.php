@@ -54,7 +54,7 @@ $recentEnquiries = q_all('SELECT e.*, p.name product_name FROM enquiries e LEFT 
 $lowStockItems = q_all('SELECT p.id, p.name, p.sku, p.stock_qty, p.min_stock, p.image, c.icon FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.is_active = 1 AND p.min_stock > 0 AND p.stock_qty <= p.min_stock ORDER BY p.stock_qty ASC, p.name LIMIT 6');
 $recentService = q_all("SELECT * FROM service_requests ORDER BY FIELD(status,'open','scheduled','in_progress','resolved','closed'), created_at DESC LIMIT 5");
 $recentQuotes = q_all('SELECT * FROM quotations ORDER BY created_at DESC LIMIT 5');
-$topProducts = q_all('SELECT p.id, p.name, p.views, COUNT(e.id) enquiries FROM products p LEFT JOIN enquiries e ON e.product_id = p.id WHERE p.is_active = 1 GROUP BY p.id ORDER BY enquiries DESC, p.name LIMIT 5');
+$topProducts = q_all('SELECT p.id, p.name, COUNT(e.id) enquiries FROM products p LEFT JOIN enquiries e ON e.product_id = p.id WHERE p.is_active = 1 GROUP BY p.id ORDER BY enquiries DESC, p.name LIMIT 5');
 $activity = q_all('SELECT a.*, ad.username FROM activity_log a LEFT JOIN admins ad ON ad.id = a.admin_id ORDER BY a.created_at DESC LIMIT 6');
 
 $pageTitle = 'Dashboard';

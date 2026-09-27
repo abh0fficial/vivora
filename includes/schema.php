@@ -17,6 +17,7 @@ function vivora_schema(): array
             full_name VARCHAR(120) NOT NULL DEFAULT '',
             email VARCHAR(160) NOT NULL DEFAULT '',
             last_login_at DATETIME NULL,
+            notifications_seen_at DATETIME NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
@@ -312,8 +313,10 @@ function vivora_install(PDO $pdo, string $adminUser, string $adminPass): array
     foreach (vivora_schema() as $sql) {
         $pdo->exec($sql);
     }
-    // Upgrade older installs: enquiry sources for a dashboard-only setup.
-    $pdo->exec("ALTER TABLE enquiries MODIFY source ENUM('phone','whatsapp','email','walk_in','referral','tender','dealer','other','contact','quote','product') NOT NULL DEFAULT 'phone'");
+    // Upgrade older installs (missing columns, changed ENUMs, new settings).
+    foreach (vivora_schema_repair($pdo) as $line) {
+        $log[] = $line;
+    }
     $log[] = 'Database tables are ready.';
 
     // Settings: insert missing keys only.
@@ -363,4 +366,118 @@ function vivora_install(PDO $pdo, string $adminUser, string $adminPass): array
     }
 
     return $log;
+}
+
+/** Bump when the schema changes; the dashboard repairs/upgrades the database automatically. */
+const VIVORA_SCHEMA_VERSION = '4';
+
+/**
+ * Expected tables and columns, parsed from vivora_schema():
+ * ['table' => ['column' => 'full column definition', ...], ...]
+ */
+function vivora_schema_expected(): array
+{
+    $tables = [];
+    foreach (vivora_schema() as $sql) {
+        if (!preg_match('/CREATE TABLE IF NOT EXISTS (\w+)/', $sql, $m)) {
+            continue;
+        }
+        $cols = [];
+        foreach (preg_split('/\R/', $sql) as $line) {
+            $line = rtrim(trim($line), ',');
+            if (preg_match('/^([a-z_]+)\s+(.+)$/', $line, $c) && !in_array(strtoupper($c[1]), ['INDEX', 'CONSTRAINT', 'PRIMARY', 'UNIQUE', 'KEY', 'CREATE'], true)) {
+                $cols[$c[1]] = $c[2];
+            }
+        }
+        $tables[$m[1]] = ['sql' => $sql, 'columns' => $cols];
+    }
+    return $tables;
+}
+
+/**
+ * Compare the live database with the expected schema.
+ * Returns ['table' => ['exists' => bool, 'rows' => int|null, 'missing' => [col...], 'changed' => [col...]]].
+ */
+function vivora_schema_status(PDO $pdo): array
+{
+    $live = [];
+    $st = $pdo->query('SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()');
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $live[strtolower($r['TABLE_NAME'])][strtolower($r['COLUMN_NAME'])] = strtolower($r['COLUMN_TYPE']);
+    }
+    $report = [];
+    foreach (vivora_schema_expected() as $table => $def) {
+        $exists = isset($live[$table]);
+        $missing = $changed = [];
+        foreach ($def['columns'] as $col => $colDef) {
+            if (!$exists) {
+                continue;
+            }
+            if (!isset($live[$table][$col])) {
+                $missing[] = $col;
+            } elseif (preg_match("/^ENUM\\((.+?)\\)/i", $colDef, $em)) {
+                // Compare enum value lists (e.g. new enquiry sources).
+                $want = strtolower(str_replace([' ', '"'], ['', "'"], $em[1]));
+                $have = preg_replace('/^enum\((.*)\)$/', '$1', $live[$table][$col]);
+                if ($want !== str_replace(' ', '', $have)) {
+                    $changed[] = $col;
+                }
+            }
+        }
+        $rows = $exists ? (int) $pdo->query("SELECT COUNT(*) FROM `$table`")->fetchColumn() : null;
+        $report[$table] = ['exists' => $exists, 'rows' => $rows, 'missing' => $missing, 'changed' => $changed];
+    }
+    return $report;
+}
+
+/** Create missing tables, add missing columns and update changed ENUMs. Returns log lines. */
+function vivora_schema_repair(PDO $pdo): array
+{
+    $log = [];
+    $expected = vivora_schema_expected();
+    foreach (vivora_schema_status($pdo) as $table => $s) {
+        if (!$s['exists']) {
+            $pdo->exec($expected[$table]['sql']);
+            $log[] = "Created missing table `$table`.";
+            continue;
+        }
+        foreach ($s['missing'] as $col) {
+            $def = preg_replace('/\s+(PRIMARY KEY|UNIQUE)\b/i', '', $expected[$table]['columns'][$col]);
+            $pdo->exec("ALTER TABLE `$table` ADD COLUMN `$col` $def");
+            $log[] = "Added missing column `$table`.`$col`.";
+        }
+        foreach ($s['changed'] as $col) {
+            $pdo->exec("ALTER TABLE `$table` MODIFY COLUMN `$col` " . $expected[$table]['columns'][$col]);
+            $log[] = "Updated column `$table`.`$col`.";
+        }
+    }
+    // Settings keys added in newer versions.
+    $st = $pdo->prepare('INSERT IGNORE INTO settings (skey, svalue) VALUES (?, ?)');
+    foreach (vivora_default_settings() as $k => $v) {
+        $st->execute([$k, $v]);
+    }
+    $pdo->prepare('INSERT INTO settings (skey, svalue) VALUES (?, ?) ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)')
+        ->execute(['schema_version', VIVORA_SCHEMA_VERSION]);
+    return $log;
+}
+
+/** Run the repair once whenever the stored schema version is older than the code. */
+function vivora_auto_upgrade(PDO $pdo): void
+{
+    try {
+        $v = $pdo->query("SELECT svalue FROM settings WHERE skey = 'schema_version'")->fetchColumn();
+    } catch (Throwable $e) {
+        $v = false; // settings table missing
+    }
+    if ((string) $v === VIVORA_SCHEMA_VERSION) {
+        return;
+    }
+    try {
+        $log = vivora_schema_repair($pdo);
+        if ($log) {
+            error_log('Vivora schema upgraded: ' . implode(' ', $log));
+        }
+    } catch (Throwable $e) {
+        error_log('Vivora schema upgrade failed: ' . $e->getMessage());
+    }
 }

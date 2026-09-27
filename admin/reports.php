@@ -99,8 +99,8 @@ require __DIR__ . '/partials/header.php';
             <div class="card-body">
                 <?php foreach ($enqByStatus as $r): ?><div class="d-flex justify-content-between mb-2"><?= status_badge($r['status']) ?><strong><?= (int) $r['c'] ?></strong></div><?php endforeach; ?>
                 <hr>
-                <div class="fs-12 text-muted mb-2">By source</div>
-                <?php foreach ($enqBySource as $r): ?><div class="d-flex justify-content-between mb-2"><span><?= e(ucfirst($r['source'])) ?> form</span><strong><?= (int) $r['c'] ?></strong></div><?php endforeach; ?>
+                <div class="fs-12 text-muted mb-2">Received via</div>
+                <?php foreach ($enqBySource as $r): ?><div class="d-flex justify-content-between mb-2"><span><?= e(enquiry_sources()[$r['source']] ?? ucfirst($r['source'])) ?></span><strong><?= (int) $r['c'] ?></strong></div><?php endforeach; ?>
             </div>
         </div>
     </div>

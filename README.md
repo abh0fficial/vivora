@@ -6,7 +6,7 @@ This is the admin dashboard for Vivora Healthcare, a medical equipment supplier.
 
 ## What's included
 
-This is a private business dashboard only. There is no public website: opening your domain takes you straight to the dashboard login. The dashboard is built on the Duralux admin theme, recoloured to Vivora navy and teal.
+This is a private dashboard for your own day-to-day office work. There is no public website: opening your domain takes you straight to the dashboard login, and everything is entered by hand. The dashboard is built on the Duralux admin theme, recoloured to Vivora navy and teal.
 
 - **Secure login**: hashed passwords, session timeout, and a 15-minute lockout after 5 failed attempts. Search engines are told not to index the dashboard.
 - **Dashboard**: live stats, a 12-month enquiries/service/sales chart, enquiries by category, pipeline, low-stock alerts, service desk and recent activity
@@ -19,7 +19,10 @@ This is a private business dashboard only. There is no public website: opening y
 - **Service requests**: installation, repair, AMC, calibration and training tickets, with priority, assigned engineer, visit date and notes
 - **Reports**: sales, enquiries and service reports for any date range
 - **Company settings**: phone, email, address, GSTIN, quotation terms and bank details (printed on quotations)
-- **CSV export** for Excel, **Activity log**, **My Profile** (change username or password), and dark mode
+- **Notifications** (bell icon): new enquiries, open service tickets, low-stock products and quotations about to expire. Includes an unread count, "Mark all as read", and a badge that refreshes every minute.
+- **Delete from any list**: quotations, enquiries, customers, service tickets and products can be deleted straight from their list pages, after a confirmation
+- **System Check**: shows every database table with its row count and any missing columns, server checks, and a one-click **Repair database** button
+- **CSV export** for Excel, **Activity log**, **My Profile** (change username or password)
 
 ## Deploy on Hostinger
 
@@ -40,6 +43,9 @@ Download the repository as a ZIP from GitHub, upload it in **File Manager → pu
 4. For extra safety, delete `install.php` afterwards in File Manager.
 
 > 🔒 `config.php`, which holds the database password, is listed in `.gitignore`, so the password is never pushed to GitHub. Keep it that way, because this repository is public.
+
+### Updating an existing installation
+Deploy the new code the same way (Hostinger Git → **Deploy**). The dashboard upgrades the database by itself the first time it opens: it adds missing tables and columns and updates changed fields. You don't need to re-run the installer. Open **System Check** afterwards to confirm that all tables show **OK**.
 
 ### 3. Log in and finish setup
 - Dashboard: `https://your-domain/`, which redirects to `/admin/`

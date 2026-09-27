@@ -2,6 +2,18 @@
 require __DIR__ . '/../includes/auth.php';
 $admin = require_admin();
 
+// Delete straight from the list (with confirmation in the browser).
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && post('action') === 'delete') {
+    require_post();
+    $row = q_row('SELECT * FROM quotations WHERE id = ?', [(int) post('id')]);
+    if ($row) {
+        q('DELETE FROM quotations WHERE id = ?', [$row['id']]);
+        log_activity('quotation.delete', 'Deleted quotation ' . $row['quote_no']);
+        flash('success', 'Quotation ' . $row['quote_no'] . ' deleted.');
+    }
+    redirect('admin/quotations.php' . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : ''));
+}
+
 $statuses = ['draft', 'sent', 'accepted', 'rejected'];
 $status = in_array(get('status'), $statuses, true) ? get('status') : '';
 $rows = q_all('SELECT qt.*, (SELECT COUNT(*) FROM quotation_items i WHERE i.quotation_id = qt.id) item_count FROM quotations qt'
@@ -62,6 +74,9 @@ require __DIR__ . '/partials/header.php';
                             <div class="hstack gap-2 justify-content-end">
                                 <a href="quotation-view.php?id=<?= (int) $r['id'] ?>" class="avatar-text avatar-md" title="View / print"><i class="feather-printer"></i></a>
                                 <a href="quotation-form.php?id=<?= (int) $r['id'] ?>" class="avatar-text avatar-md" title="Edit"><i class="feather-edit-3"></i></a>
+                                <form method="post" class="m-0" data-confirm="Delete quotation <?= e($r['quote_no']) ?> permanently?"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
+                                    <button class="avatar-text avatar-md border-0 text-danger" title="Delete"><i class="feather-trash-2"></i></button>
+                                </form>
                             </div>
                         </td>
                     </tr>

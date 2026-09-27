@@ -16,8 +16,21 @@
 <script src="<?= asset($js) ?>"></script>
 <?php endforeach; ?>
 <script src="<?= asset('js/common-init.min.js') ?>"></script>
-<script src="<?= asset('js/theme-customizer-init.min.js') ?>"></script>
 <script>
+    // Refresh the notification badge every minute.
+    (function () {
+        var badge = document.getElementById('vhNotifBadge');
+        if (!badge || !window.fetch) return;
+        setInterval(function () {
+            fetch('notifications.php?format=count', { credentials: 'same-origin', cache: 'no-store' })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (d) {
+                    if (!d) return;
+                    badge.textContent = d.unread > 99 ? '99+' : d.unread;
+                    badge.style.display = d.unread > 0 ? '' : 'none';
+                }).catch(function () {});
+        }, 60000);
+    })();
     // Confirm destructive actions: <form data-confirm="Delete this?">
     document.addEventListener('submit', function (e) {
         var msg = e.target.getAttribute('data-confirm');

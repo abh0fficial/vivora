@@ -11,6 +11,7 @@ $breadcrumbs = $breadcrumbs ?? [];
 $newEnquiries = (int) q_val("SELECT COUNT(*) FROM enquiries WHERE status = 'new'");
 $openService = (int) q_val("SELECT COUNT(*) FROM service_requests WHERE status IN ('open','scheduled','in_progress')");
 $lowStock = (int) q_val('SELECT COUNT(*) FROM products WHERE is_active = 1 AND min_stock > 0 AND stock_qty <= min_stock');
+$notif = admin_notifications($admin);
 $initials = strtoupper(substr($admin['full_name'] ?: $admin['username'], 0, 1));
 
 $nav = [
@@ -40,6 +41,7 @@ $nav = [
     ['key' => 'settings', 'label' => 'Company Settings', 'icon' => 'settings', 'url' => 'settings.php'],
     ['key' => 'profile', 'label' => 'My Profile', 'icon' => 'user', 'url' => 'profile.php'],
     ['key' => 'activity', 'label' => 'Activity Log', 'icon' => 'clock', 'url' => 'activity.php'],
+    ['key' => 'system', 'label' => 'System Check', 'icon' => 'database', 'url' => 'system.php'],
 ];
 
 function nav_is_active(array $item, string $active): bool
@@ -71,10 +73,7 @@ function nav_is_active(array $item, string $active): bool
     <?php endforeach; ?>
     <link rel="stylesheet" href="<?= asset('css/theme.min.css') ?>">
     <link rel="stylesheet" href="<?= asset('css/admin.css') ?>?v=<?= APP_VERSION ?>">
-    <script>
-        // Apply saved dark mode before paint to avoid a flash.
-        try { if (localStorage.getItem('app-skin-dark') === 'app-skin-dark') document.documentElement.classList.add('app-skin-dark'); } catch (e) {}
-    </script>
+    <script>try { localStorage.removeItem('app-skin-dark'); localStorage.removeItem('app-skin'); } catch (e) {}</script>
 </head>
 <body>
 <nav class="nxl-navigation">
@@ -152,42 +151,43 @@ function nav_is_active(array $item, string $active): bool
                         </a>
                     </div>
                 </div>
-                <div class="nxl-h-item dark-light-theme">
-                    <a href="javascript:void(0);" class="nxl-head-link me-0 dark-button"><i class="feather-moon"></i></a>
-                    <a href="javascript:void(0);" class="nxl-head-link me-0 light-button" style="display: none"><i class="feather-sun"></i></a>
-                </div>
                 <div class="dropdown nxl-h-item">
-                    <a class="nxl-head-link me-3" data-bs-toggle="dropdown" href="#" role="button" data-bs-auto-close="outside">
+                    <a class="nxl-head-link me-3 position-relative" data-bs-toggle="dropdown" href="#" role="button" data-bs-auto-close="outside" aria-label="Notifications">
                         <i class="feather-bell"></i>
-                        <?php if ($newEnquiries + $openService > 0): ?>
-                            <span class="badge bg-danger nxl-h-badge"><?= $newEnquiries + $openService ?></span>
-                        <?php endif; ?>
+                        <span class="badge bg-danger nxl-h-badge" id="vhNotifBadge"<?= $notif['unread'] ? '' : ' style="display:none"' ?>><?= $notif['unread'] > 99 ? '99+' : $notif['unread'] ?></span>
                     </a>
-                    <div class="dropdown-menu dropdown-menu-end nxl-h-dropdown nxl-notifications-menu">
+                    <div class="dropdown-menu dropdown-menu-end nxl-h-dropdown nxl-notifications-menu vh-notif-menu">
                         <div class="d-flex justify-content-between align-items-center notifications-head">
-                            <h6 class="fw-bold text-dark mb-0">Notifications</h6>
+                            <h6 class="fw-bold text-dark mb-0">Notifications<?= $notif['unread'] ? ' <span class="badge bg-soft-danger text-danger ms-1">' . $notif['unread'] . ' new</span>' : '' ?></h6>
+                            <?php if ($notif['unread']): ?>
+                                <form action="notifications.php" method="post" class="m-0"><?= csrf_field() ?>
+                                    <button class="btn btn-link p-0 fs-11 text-success text-decoration-none"><i class="feather-check me-1"></i>Mark all as read</button>
+                                </form>
+                            <?php endif; ?>
                         </div>
-                        <a href="enquiries.php?status=new" class="notifications-item text-reset">
-                            <div class="avatar-text avatar-md bg-soft-primary text-primary me-3"><i class="feather-inbox"></i></div>
-                            <div class="notifications-desc">
-                                <span class="fw-semibold text-dark"><?= $newEnquiries ?> new enquir<?= $newEnquiries === 1 ? 'y' : 'ies' ?></span>
-                                <div class="notifications-date text-muted">Quote & contact requests waiting for a reply</div>
-                            </div>
-                        </a>
-                        <a href="service-requests.php" class="notifications-item text-reset">
-                            <div class="avatar-text avatar-md bg-soft-danger text-danger me-3"><i class="feather-tool"></i></div>
-                            <div class="notifications-desc">
-                                <span class="fw-semibold text-dark"><?= $openService ?> open service request<?= $openService === 1 ? '' : 's' ?></span>
-                                <div class="notifications-date text-muted">Installation, repair, AMC & calibration</div>
-                            </div>
-                        </a>
-                        <a href="inventory.php?filter=attention" class="notifications-item text-reset">
-                            <div class="avatar-text avatar-md bg-soft-warning text-warning me-3"><i class="feather-alert-triangle"></i></div>
-                            <div class="notifications-desc">
-                                <span class="fw-semibold text-dark"><?= $lowStock ?> product<?= $lowStock === 1 ? '' : 's' ?> low on stock</span>
-                                <div class="notifications-date text-muted">At or below minimum stock level</div>
-                            </div>
-                        </a>
+                        <div class="vh-notif-list">
+                            <?php if (!$notif['items']): ?>
+                                <div class="text-center text-muted py-5 px-3"><i class="feather-bell-off fs-3 d-block mb-2"></i>You're all caught up.</div>
+                            <?php endif; ?>
+                            <?php foreach ($notif['items'] as $n): ?>
+                                <a href="<?= e($n['url']) ?>" class="notifications-item text-reset<?= $n['unread'] ? ' vh-unread' : '' ?>">
+                                    <div class="avatar-text avatar-md bg-soft-<?= e($n['color']) ?> text-<?= e($n['color']) ?> me-3 flex-shrink-0"><i class="feather-<?= e($n['icon']) ?>"></i></div>
+                                    <div class="notifications-desc flex-grow-1 min-w-0">
+                                        <span class="fw-semibold text-dark d-block text-truncate-1-line"><?= e($n['title']) ?></span>
+                                        <?php if ($n['text'] !== ''): ?><span class="fs-12 text-muted d-block text-truncate-1-line"><?= e($n['text']) ?></span><?php endif; ?>
+                                        <span class="notifications-date fs-11 text-muted"><?= e(time_ago($n['time'])) ?></span>
+                                    </div>
+                                    <?php if ($n['unread']): ?><span class="vh-unread-dot" title="Unread"></span><?php endif; ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                        <div class="text-center notifications-footer border-top py-2">
+                            <a href="enquiries.php?status=new" class="fs-12 fw-semibold">Enquiries</a>
+                            <span class="text-muted mx-2">·</span>
+                            <a href="service-requests.php?status=open" class="fs-12 fw-semibold">Service</a>
+                            <span class="text-muted mx-2">·</span>
+                            <a href="inventory.php?filter=attention" class="fs-12 fw-semibold">Stock</a>
+                        </div>
                     </div>
                 </div>
                 <div class="dropdown nxl-h-item">

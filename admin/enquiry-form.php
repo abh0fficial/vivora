@@ -2,7 +2,7 @@
 require __DIR__ . '/../includes/auth.php';
 $admin = require_admin();
 
-// Sources offered for new entries (legacy website sources stay readable but aren't offered).
+// Sources offered for new entries (older ones stay readable on existing records).
 $sources = array_slice(enquiry_sources(), 0, 8, true);
 $id = (int) get('id');
 $enq = $id ? q_row('SELECT * FROM enquiries WHERE id = ?', [$id]) : null;

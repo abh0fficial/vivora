@@ -2,6 +2,18 @@
 require __DIR__ . '/../includes/auth.php';
 $admin = require_admin();
 
+// Delete straight from the list (with confirmation in the browser).
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && post('action') === 'delete') {
+    require_post();
+    $row = q_row('SELECT * FROM enquiries WHERE id = ?', [(int) post('id')]);
+    if ($row) {
+        q('DELETE FROM enquiries WHERE id = ?', [$row['id']]);
+        log_activity('enquiry.delete', 'Deleted enquiry ' . '#' . $row['id'] . ' from ' . $row['name']);
+        flash('success', 'Enquiry ' . '#' . $row['id'] . ' from ' . $row['name'] . ' deleted.');
+    }
+    redirect('admin/enquiries.php' . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : ''));
+}
+
 $statuses = ['new', 'contacted', 'quoted', 'won', 'lost'];
 $status = in_array(get('status'), $statuses, true) ? get('status') : '';
 $search = get('q');
@@ -64,7 +76,15 @@ require __DIR__ . '/partials/header.php';
                         <td class="fw-normal"><?= $r['quantity'] ? (int) $r['quantity'] : '—' ?></td>
                         <td><?= status_badge($r['status']) ?></td>
                         <td class="fs-12 fw-normal" data-order="<?= e($r['created_at']) ?>"><?= e(fmt_date($r['created_at'], 'd M Y')) ?><br><span class="text-muted"><?= e(time_ago($r['created_at'])) ?></span></td>
-                        <td class="text-end"><a href="enquiry-view.php?id=<?= (int) $r['id'] ?>" class="avatar-text avatar-md"><i class="feather-arrow-right"></i></a></td>
+                        <td class="text-end">
+                            <div class="hstack gap-2 justify-content-end">
+                                <a href="enquiry-view.php?id=<?= (int) $r['id'] ?>" class="avatar-text avatar-md" title="Open"><i class="feather-eye"></i></a>
+                                <a href="enquiry-form.php?id=<?= (int) $r['id'] ?>" class="avatar-text avatar-md" title="Edit"><i class="feather-edit-3"></i></a>
+                                <form method="post" class="m-0" data-confirm="Delete this enquiry from <?= e($r['name']) ?>?"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
+                                    <button class="avatar-text avatar-md border-0 text-danger" title="Delete"><i class="feather-trash-2"></i></button>
+                                </form>
+                            </div>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
