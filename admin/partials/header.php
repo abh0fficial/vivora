@@ -245,7 +245,7 @@ function nav_is_active(array $item, string $active): bool
 
 <main class="nxl-container">
     <div class="nxl-content">
-        <div class="page-header">
+        <div class="page-header<?= empty($pageActions) ? ' vh-no-actions' : '' ?>">
             <div class="page-header-left d-flex align-items-center">
                 <div class="page-header-title">
                     <h5 class="m-b-10"><?= e($pageTitle) ?></h5>

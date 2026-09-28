@@ -94,3 +94,11 @@ html.app-skin-dark .vh-kv dd { color: #e2e8f0; }
 @media print {
   .vh-doc-main { flex: 0 0 100% !important; max-width: 100% !important; }
 }
+
+/* Phones & tablets: no page title / breadcrumb strip under the top bar (the menu shows where you are). */
+@media (max-width: 991.98px) {
+  .page-header .page-header-left { display: none !important; }
+  .page-header.vh-no-actions { display: none !important; }
+  .page-header { padding: 12px 16px !important; height: auto !important; min-height: 0 !important; }
+  .page-header .page-header-right { margin-left: 0 !important; width: 100%; }
+}
