@@ -1,6 +1,6 @@
 <?php
 require __DIR__ . '/../includes/auth.php';
-$admin = require_admin();
+$admin = require_owner();
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     require_post();

@@ -1,6 +1,6 @@
 <?php
 require __DIR__ . '/../includes/auth.php';
-$admin = require_admin();
+$admin = require_owner();
 
 $groups = [
     'Company' => [
@@ -15,6 +15,15 @@ $groups = [
         'email' => ['Email', 'email'],
         'address' => ['Address', 'textarea'],
         'city' => ['City / State / PIN', 'text'],
+    ],
+    'Billing & invoices' => [
+        'company_state' => ['Company state (decides CGST + SGST or IGST)', 'state'],
+        'invoice_prefix' => ['Invoice number prefix (financial year is added, e.g. VH-INV-2026-27/0001)', 'text'],
+        'receipt_prefix' => ['Payment receipt prefix', 'text'],
+        'invoice_due_days' => ['Default payment terms (days)', 'number'],
+        'upi_id' => ['UPI ID (printed on invoices)', 'text'],
+        'invoice_terms' => ['Default invoice terms & conditions', 'textarea'],
+        'expense_categories' => ['Expense categories (one per line)', 'textarea'],
     ],
     'Quotations' => [
         'quote_prefix' => ['Quotation number prefix', 'text'],
@@ -65,8 +74,12 @@ require __DIR__ . '/partials/header.php';
                         <?php foreach ($fields as $key => [$label, $type]): ?>
                             <div class="mb-3">
                                 <label class="form-label" for="s_<?= $key ?>"><?= e($label) ?></label>
-                                <?php if ($type === 'textarea'): ?>
-                                    <textarea id="s_<?= $key ?>" name="<?= $key ?>" class="form-control" rows="<?= in_array($key, ['about_text', 'quote_terms'], true) ? 6 : 3 ?>"><?= e(setting($key)) ?></textarea>
+                                <?php if ($type === 'state'): ?>
+                                    <select id="s_<?= $key ?>" name="<?= $key ?>" class="form-select"><option value="">— Select state —</option>
+                                        <?php foreach (indian_states() as $code => $st): ?><option value="<?= e($st) ?>" <?= setting($key) === $st ? 'selected' : '' ?>><?= $code ?> – <?= e($st) ?></option><?php endforeach; ?>
+                                    </select>
+                                <?php elseif ($type === 'textarea'): ?>
+                                    <textarea id="s_<?= $key ?>" name="<?= $key ?>" class="form-control" rows="<?= in_array($key, ['quote_terms', 'invoice_terms', 'expense_categories'], true) ? 6 : 3 ?>"><?= e(setting($key)) ?></textarea>
                                 <?php else: ?>
                                     <input id="s_<?= $key ?>" type="<?= in_array($type, ['url', 'email'], true) ? 'text' : $type ?>" name="<?= $key ?>" class="form-control" value="<?= e(setting($key)) ?>">
                                 <?php endif; ?>

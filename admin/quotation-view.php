@@ -51,12 +51,16 @@ $waText = "Dear {$qt['customer_name']},\nPlease find our quotation {$qt['quote_n
 $pageTitle = 'Quotation ' . $qt['quote_no'];
 $activeNav = 'quotations';
 $breadcrumbs = ['Quotations' => 'quotations.php', $qt['quote_no'] => null];
-$pageActions = '<button onclick="window.print()" class="btn btn-primary"><i class="feather-printer me-2"></i>Print / Save PDF</button>'
+$invoiced = q_row('SELECT id, invoice_no FROM invoices WHERE quotation_id = ? ORDER BY id DESC LIMIT 1', [$id]);
+$pageActions = ($invoiced
+        ? '<a href="invoice-view.php?id=' . (int) $invoiced['id'] . '" class="btn btn-success"><i class="feather-check me-2"></i>Invoiced: ' . e($invoiced['invoice_no']) . '</a>'
+        : '<a href="invoice-form.php?quotation_id=' . $id . '" class="btn btn-success"><i class="feather-file-plus me-2"></i>Convert to invoice</a>')
+    . '<button onclick="window.print()" class="btn btn-primary"><i class="feather-printer me-2"></i>Print / Save PDF</button>'
     . '<a href="quotation-form.php?id=' . $id . '" class="btn btn-light-brand"><i class="feather-edit-3 me-2"></i>Edit</a>';
 require __DIR__ . '/partials/header.php';
 ?>
 <div class="row">
-    <div class="col-xxl-9">
+    <div class="col-12 vh-doc-main">
         <div class="card" id="printArea">
             <div class="card-body p-4 p-md-5">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-4 mb-5">
@@ -136,7 +140,7 @@ require __DIR__ . '/partials/header.php';
             </div>
         </div>
     </div>
-    <div class="col-xxl-3 no-print">
+    <div class="col-12 vh-doc-side no-print">
         <div class="card">
             <div class="card-header"><h5 class="card-title">Actions</h5></div>
             <div class="card-body d-grid gap-2">

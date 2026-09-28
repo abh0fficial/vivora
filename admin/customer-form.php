@@ -25,6 +25,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     foreach ($fields as $f) $data[$f] = post($f);
     if (!array_key_exists($data['type'], $types)) $data['type'] = 'other';
     $data['gstin'] = strtoupper($data['gstin']);
+    if ($data['state'] === '' && state_from_gstin($data['gstin'])) $data['state'] = state_from_gstin($data['gstin']);
     if ($data['name'] === '') $errors[] = 'Contact name is required.';
     if ($data['email'] !== '' && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) $errors[] = 'Email address is not valid.';
     if (!$errors) {
@@ -49,7 +50,11 @@ $enquiries = $customer ? q_all('SELECT e.id, e.created_at, e.status, p.name prod
 $pageTitle = $customer ? ($customer['organization'] ?: $customer['name']) : 'Add Customer';
 $activeNav = 'customers';
 $breadcrumbs = ['Customers' => 'customers.php', ($customer ? 'Edit' : 'Add') => null];
-if ($customer) $pageActions = '<a href="quotation-form.php?customer_id=' . $id . '" class="btn btn-primary"><i class="feather-file-plus me-2"></i>New quotation</a>';
+if ($customer) $pageActions = '<a href="customer-ledger.php?id=' . $id . '" class="btn btn-light-brand"><i class="feather-book-open me-2"></i>Ledger</a>'
+    . '<a href="quotation-form.php?customer_id=' . $id . '" class="btn btn-light-brand"><i class="feather-clipboard me-2"></i>New quotation</a>'
+    . '<a href="invoice-form.php?customer_id=' . $id . '" class="btn btn-primary"><i class="feather-file-plus me-2"></i>New invoice</a>';
+$invoices = $customer ? q_all('SELECT id, invoice_no, invoice_date, status, grand_total, amount_paid FROM invoices WHERE customer_id = ? ORDER BY invoice_date DESC LIMIT 20', [$id]) : [];
+$balance = $customer ? customer_balance($id) : 0;
 require __DIR__ . '/partials/header.php';
 ?>
 <?php foreach ($errors as $err): ?><div class="alert alert-danger"><?= e($err) ?></div><?php endforeach; ?>
@@ -69,7 +74,7 @@ require __DIR__ . '/partials/header.php';
                     <div class="col-md-4 mb-4"><label class="form-label">Email</label><input type="email" name="email" class="form-control" value="<?= e($data['email']) ?>" maxlength="160"></div>
                     <div class="col-md-12 mb-4"><label class="form-label">Address</label><input name="address" class="form-control" value="<?= e($data['address']) ?>" maxlength="400"></div>
                     <div class="col-md-4 mb-4"><label class="form-label">City</label><input name="city" class="form-control" value="<?= e($data['city']) ?>" maxlength="80"></div>
-                    <div class="col-md-4 mb-4"><label class="form-label">State</label><input name="state" class="form-control" value="<?= e($data['state']) ?>" maxlength="80"></div>
+                    <div class="col-md-4 mb-4"><label class="form-label">State</label><select name="state" class="form-select"><option value="">—</option><?php foreach (indian_states() as $st): ?><option <?= $data['state'] === $st ? 'selected' : '' ?>><?= e($st) ?></option><?php endforeach; ?><?php if ($data['state'] !== '' && !in_array($data['state'], indian_states(), true)): ?><option selected><?= e($data['state']) ?></option><?php endif; ?></select></div>
                     <div class="col-md-4 mb-4"><label class="form-label">PIN code</label><input name="pincode" class="form-control" value="<?= e($data['pincode']) ?>" maxlength="10"></div>
                     <div class="col-md-6 mb-4"><label class="form-label">GSTIN</label><input name="gstin" class="form-control text-uppercase" value="<?= e($data['gstin']) ?>" maxlength="20"></div>
                     <div class="col-md-12"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="4"><?= e($data['notes']) ?></textarea></div>
@@ -85,6 +90,18 @@ require __DIR__ . '/partials/header.php';
     </div>
     <?php if ($customer): ?>
     <div class="col-xl-4">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title">Invoices</h5><span class="fs-12">Outstanding: <strong class="<?= $balance > 0 ? 'text-danger' : 'text-success' ?>"><?= money($balance) ?></strong></span></div>
+            <div class="card-body">
+                <?php if (!$invoices): ?><p class="text-muted fs-12 mb-0">No invoices yet.</p><?php endif; ?>
+                <?php foreach ($invoices as $iv): ?>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div><a href="invoice-view.php?id=<?= (int) $iv['id'] ?>" class="fw-semibold"><?= e($iv['invoice_no']) ?></a><div class="fs-11 text-muted"><?= e(fmt_date($iv['invoice_date'])) ?></div></div>
+                        <div class="text-end"><?= status_badge($iv['status']) ?><div class="fs-12 fw-semibold"><?= money($iv['grand_total']) ?></div></div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
         <div class="card">
             <div class="card-header"><h5 class="card-title">Quotations</h5></div>
             <div class="card-body">

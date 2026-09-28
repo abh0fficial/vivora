@@ -25,11 +25,33 @@ function current_admin(): ?array
         }
         $_SESSION['last_seen'] = time();
         try {
-            $admin = q_row('SELECT id, username, full_name, email, last_login_at, notifications_seen_at FROM admins WHERE id = ?', [(int) $_SESSION['admin_id']]);
+            $admin = q_row('SELECT id, username, full_name, email, last_login_at, notifications_seen_at, role, is_active FROM admins WHERE id = ?', [(int) $_SESSION['admin_id']]);
         } catch (PDOException $e) {
             // Database not upgraded yet (System Check → Repair database fixes it).
-            $admin = q_row('SELECT id, username, full_name, email, last_login_at, NULL AS notifications_seen_at FROM admins WHERE id = ?', [(int) $_SESSION['admin_id']]);
+            $admin = q_row("SELECT id, username, full_name, email, last_login_at, NULL AS notifications_seen_at, 'admin' AS role, 1 AS is_active FROM admins WHERE id = ?", [(int) $_SESSION['admin_id']]);
         }
+    }
+    if ($admin && !(int) $admin['is_active']) {
+        logout_admin();
+        $admin = null;
+    }
+    return $admin;
+}
+
+/** True for the owner/administrator role (staff users get a restricted menu). */
+function is_owner(?array $admin = null): bool
+{
+    $admin = $admin ?? current_admin();
+    return $admin && ($admin['role'] ?? 'admin') === 'admin';
+}
+
+/** Block staff users from admin-only pages (settings, users, backup, system). */
+function require_owner(): array
+{
+    $admin = require_admin();
+    if (!is_owner($admin)) {
+        flash('error', 'Only an administrator can open that page.');
+        redirect('admin/index.php');
     }
     return $admin;
 }
@@ -57,7 +79,7 @@ function login_throttled(): bool
 
 function attempt_login(string $username, string $password): bool
 {
-    $row = q_row('SELECT id, password_hash FROM admins WHERE username = ?', [$username]);
+    $row = q_row('SELECT id, password_hash FROM admins WHERE username = ? AND is_active = 1', [$username]);
     if (!$row || !password_verify($password, $row['password_hash'])) {
         q('INSERT INTO login_attempts (ip, username) VALUES (?, ?)', [client_ip(), mb_substr($username, 0, 60)]);
         return false;
@@ -134,6 +156,16 @@ function admin_notifications(array $admin): array
         WHERE status = 'sent' AND valid_until BETWEEN CURDATE() AND (CURDATE() + INTERVAL 3 DAY) ORDER BY valid_until LIMIT 10") as $r) {
         $items[] = ['icon' => 'clock', 'color' => 'info', 'time' => $r['updated_at'], 'url' => 'quotation-view.php?id=' . $r['id'],
             'title' => 'Quotation ' . $r['quote_no'] . ' expires ' . fmt_date($r['valid_until']), 'text' => 'Follow up with ' . ($r['customer_org'] ?: $r['customer_name'])];
+    }
+    foreach (q_all("SELECT id, invoice_no, customer_org, customer_name, due_date, grand_total - amount_paid bal FROM invoices
+        WHERE status IN ('unpaid','partial') AND due_date < CURDATE() ORDER BY due_date LIMIT 10") as $r) {
+        $items[] = ['icon' => 'alert-circle', 'color' => 'danger', 'time' => $r['due_date'] . ' 23:59:59', 'url' => 'invoice-view.php?id=' . $r['id'],
+            'title' => 'Overdue: ' . $r['invoice_no'] . ' · ' . money($r['bal']), 'text' => ($r['customer_org'] ?: $r['customer_name']) . ' · due ' . fmt_date($r['due_date'])];
+    }
+    foreach (q_all("SELECT id, bill_no, supplier_name, due_date, grand_total - amount_paid bal FROM purchases
+        WHERE status IN ('unpaid','partial') AND due_date IS NOT NULL AND due_date <= (CURDATE() + INTERVAL 3 DAY) ORDER BY due_date LIMIT 10") as $r) {
+        $items[] = ['icon' => 'shopping-cart', 'color' => 'warning', 'time' => $r['due_date'] . ' 00:00:00', 'url' => 'purchase-form.php?id=' . $r['id'],
+            'title' => 'Pay supplier: ' . $r['supplier_name'] . ' · ' . money($r['bal']), 'text' => 'Bill ' . ($r['bill_no'] ?: '#' . $r['id']) . ' · due ' . fmt_date($r['due_date'])];
     }
     usort($items, fn($a, $b) => strcmp((string) $b['time'], (string) $a['time']));
     $seen = $admin['notifications_seen_at'] ?? null;

@@ -10,7 +10,7 @@ if ($id && !$product) {
 }
 
 $defaults = [
-    'category_id' => (int) get('category') ?: null, 'name' => '', 'sku' => '', 'brand' => '', 'model' => '',
+    'category_id' => (int) get('category') ?: null, 'name' => '', 'sku' => '', 'hsn_code' => '', 'purchase_price' => null, 'brand' => '', 'model' => '',
     'short_description' => '', 'description' => '', 'specifications' => '', 'price' => null, 'gst_rate' => '12.00',
     'unit' => 'Unit', 'stock_qty' => 0, 'min_stock' => 0, 'warranty' => '', 'image' => null, 'brochure' => null,
     'show_price' => 0, 'is_featured' => 0, 'is_active' => 1,
@@ -24,6 +24,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         'category_id' => (int) post('category_id') ?: null,
         'name' => post('name'),
         'sku' => post('sku'),
+        'hsn_code' => mb_substr(preg_replace('/\s+/', '', post('hsn_code')), 0, 20),
+        'purchase_price' => post('purchase_price') === '' ? null : (float) str_replace(',', '', post('purchase_price')),
         'brand' => post('brand'),
         'model' => post('model'),
         'short_description' => mb_substr(post('short_description'), 0, 300),
@@ -71,7 +73,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $data['brochure'] = null;
         }
 
-        $fields = ['category_id', 'name', 'sku', 'brand', 'model', 'short_description', 'description', 'specifications', 'price',
+        $fields = ['category_id', 'name', 'sku', 'hsn_code', 'purchase_price', 'brand', 'model', 'short_description', 'description', 'specifications', 'price',
             'gst_rate', 'unit', 'stock_qty', 'min_stock', 'warranty', 'image', 'brochure', 'show_price', 'is_featured', 'is_active'];
         $values = array_map(fn($f) => $data[$f], $fields);
 
@@ -170,8 +172,16 @@ require __DIR__ . '/partials/header.php';
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-4 mb-4">
-                            <label class="form-label">Price (₹, excl. GST)</label>
+                            <label class="form-label">Selling price (₹, excl. GST)</label>
                             <input type="number" step="0.01" min="0" name="price" class="form-control" value="<?= e($data['price']) ?>" placeholder="Leave blank = on request">
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <label class="form-label">Purchase / cost price (₹)</label>
+                            <input type="number" step="0.01" min="0" name="purchase_price" class="form-control" value="<?= e($data['purchase_price']) ?>" placeholder="For profit reports">
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <label class="form-label">HSN / SAC code</label>
+                            <input type="text" name="hsn_code" class="form-control" value="<?= e($data['hsn_code']) ?>" maxlength="20" placeholder="e.g. 9018">
                         </div>
                         <div class="col-md-4 mb-4">
                             <label class="form-label">GST rate (%)</label>

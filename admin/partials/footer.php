@@ -31,6 +31,13 @@
                 }).catch(function () {});
         }, 60000);
     })();
+    // Label line-item cells so they can stack as cards on phones.
+    document.querySelectorAll('.vh-quote-items').forEach(function (t) {
+        var heads = Array.prototype.map.call(t.querySelectorAll('thead th'), function (th) { return th.textContent.trim(); });
+        t.querySelectorAll('tbody tr').forEach(function (r) {
+            r.querySelectorAll('td').forEach(function (td, i) { if (heads[i]) td.setAttribute('data-label', heads[i]); });
+        });
+    });
     // Confirm destructive actions: <form data-confirm="Delete this?">
     document.addEventListener('submit', function (e) {
         var msg = e.target.getAttribute('data-confirm');

@@ -403,6 +403,7 @@ function status_badge(string $status): string
         'new' => 'primary', 'contacted' => 'info', 'quoted' => 'warning', 'won' => 'success', 'lost' => 'danger',
         'open' => 'danger', 'scheduled' => 'info', 'in_progress' => 'warning', 'resolved' => 'success', 'closed' => 'secondary',
         'draft' => 'secondary', 'sent' => 'info', 'accepted' => 'success', 'rejected' => 'danger',
+        'unpaid' => 'danger', 'partial' => 'warning', 'paid' => 'success', 'cancelled' => 'secondary', 'overdue' => 'danger',
     ];
     $color = $map[$status] ?? 'secondary';
     return '<span class="badge bg-soft-' . $color . ' text-' . $color . '">' . e(ucwords(str_replace('_', ' ', $status))) . '</span>';
@@ -476,4 +477,153 @@ function enquiry_sources(): array
         'referral' => 'Referral', 'tender' => 'Tender', 'dealer' => 'Dealer', 'other' => 'Other',
         'contact' => 'Contact form', 'quote' => 'Quote request', 'product' => 'Product enquiry',
     ];
+}
+
+/* ------------------------------------------------------------------ */
+/* Billing                                                             */
+/* ------------------------------------------------------------------ */
+
+/** Indian states / UTs with GST state codes. */
+function indian_states(): array
+{
+    return [
+        '01' => 'Jammu and Kashmir', '02' => 'Himachal Pradesh', '03' => 'Punjab', '04' => 'Chandigarh', '05' => 'Uttarakhand',
+        '06' => 'Haryana', '07' => 'Delhi', '08' => 'Rajasthan', '09' => 'Uttar Pradesh', '10' => 'Bihar', '11' => 'Sikkim',
+        '12' => 'Arunachal Pradesh', '13' => 'Nagaland', '14' => 'Manipur', '15' => 'Mizoram', '16' => 'Tripura', '17' => 'Meghalaya',
+        '18' => 'Assam', '19' => 'West Bengal', '20' => 'Jharkhand', '21' => 'Odisha', '22' => 'Chhattisgarh', '23' => 'Madhya Pradesh',
+        '24' => 'Gujarat', '26' => 'Dadra and Nagar Haveli and Daman and Diu', '27' => 'Maharashtra', '29' => 'Karnataka', '30' => 'Goa',
+        '31' => 'Lakshadweep', '32' => 'Kerala', '33' => 'Tamil Nadu', '34' => 'Puducherry', '35' => 'Andaman and Nicobar Islands',
+        '36' => 'Telangana', '37' => 'Andhra Pradesh', '38' => 'Ladakh',
+    ];
+}
+
+function state_code(string $state): string
+{
+    $code = array_search(strtolower(trim($state)), array_map('strtolower', indian_states()), true);
+    return $code === false ? '' : (string) $code;
+}
+
+/** State name from the first two digits of a GSTIN ('' if unknown). */
+function state_from_gstin(string $gstin): string
+{
+    return indian_states()[substr(trim($gstin), 0, 2)] ?? '';
+}
+
+/** Indian financial year for a date, e.g. "2026-27". */
+function financial_year(?string $date = null): string
+{
+    $ts = $date ? strtotime($date) : time();
+    $y = (int) date('Y', $ts);
+    $start = (int) date('n', $ts) >= 4 ? $y : $y - 1;
+    return $start . '-' . substr((string) ($start + 1), -2);
+}
+
+/** Next number in a series, restarting every financial year: PREFIX2026-27/0001. */
+function next_doc_no(string $table, string $column, string $prefix, ?string $date = null): string
+{
+    $base = $prefix . financial_year($date) . '/';
+    $last = q_val("SELECT `$column` FROM `$table` WHERE `$column` LIKE ? ORDER BY id DESC LIMIT 1", [$base . '%']);
+    $n = $last ? (int) substr((string) $last, strlen($base)) + 1 : 1;
+    do {
+        $no = $base . str_pad((string) $n++, 4, '0', STR_PAD_LEFT);
+    } while (q_val("SELECT COUNT(*) FROM `$table` WHERE `$column` = ?", [$no]));
+    return $no;
+}
+
+function payment_modes(): array
+{
+    return ['cash' => 'Cash', 'upi' => 'UPI', 'bank_transfer' => 'Bank transfer / NEFT', 'cheque' => 'Cheque', 'card' => 'Card', 'other' => 'Other'];
+}
+
+function expense_categories(): array
+{
+    $list = array_values(array_filter(array_map('trim', preg_split('/\R/', setting('expense_categories')))));
+    return $list ?: ['Other'];
+}
+
+/**
+ * GST totals for invoice lines. $items: [['qty','unit_price','gst_rate'], ...].
+ * A flat discount is spread across lines in proportion to their value (before tax).
+ * Returns items with line_total/taxable/tax_amount plus the document totals.
+ */
+function calc_gst_totals(array $items, float $discount, bool $igst): array
+{
+    $subtotal = 0.0;
+    foreach ($items as &$it) {
+        $it['line_total'] = round((float) $it['qty'] * (float) $it['unit_price'], 2);
+        $subtotal += $it['line_total'];
+    }
+    unset($it);
+    $discount = max(0.0, min($discount, $subtotal));
+    $taxableTotal = $tax = 0.0;
+    foreach ($items as &$it) {
+        $share = $subtotal > 0 ? $it['line_total'] / $subtotal : 0;
+        $it['taxable'] = round($it['line_total'] - $discount * $share, 2);
+        $it['tax_amount'] = round($it['taxable'] * (float) $it['gst_rate'] / 100, 2);
+        $taxableTotal += $it['taxable'];
+        $tax += $it['tax_amount'];
+    }
+    unset($it);
+    $taxableTotal = round($taxableTotal, 2);
+    $tax = round($tax, 2);
+    $cgst = $sgst = $igstAmt = 0.0;
+    if ($igst) {
+        $igstAmt = $tax;
+    } else {
+        $cgst = round($tax / 2, 2);
+        $sgst = round($tax - $cgst, 2);
+    }
+    $exact = round($taxableTotal + $tax, 2);
+    $grand = round($exact);
+    return [
+        'items' => $items, 'subtotal' => round($subtotal, 2), 'discount' => round($discount, 2), 'taxable_total' => $taxableTotal,
+        'cgst' => $cgst, 'sgst' => $sgst, 'igst' => $igstAmt, 'tax' => $tax, 'round_off' => round($grand - $exact, 2), 'grand_total' => $grand,
+    ];
+}
+
+/** Change a product's stock and log the movement. */
+function adjust_stock(?int $productId, float $change, string $reason, ?int $adminId = null): void
+{
+    $change = (int) round($change);
+    if (!$productId || $change === 0) {
+        return;
+    }
+    q('UPDATE products SET stock_qty = stock_qty + ? WHERE id = ?', [$change, $productId]);
+    $bal = q_val('SELECT stock_qty FROM products WHERE id = ?', [$productId]);
+    if ($bal !== null) {
+        q('INSERT INTO stock_movements (product_id, change_qty, balance_after, reason, admin_id) VALUES (?, ?, ?, ?, ?)',
+            [$productId, $change, (int) $bal, mb_substr($reason, 0, 200), $adminId ?: ($_SESSION['admin_id'] ?? null)]);
+    }
+}
+
+/** Recalculate amount paid and status of an invoice from its payments. */
+function refresh_invoice_payment(int $invoiceId): void
+{
+    $inv = q_row('SELECT grand_total, status FROM invoices WHERE id = ?', [$invoiceId]);
+    if (!$inv) {
+        return;
+    }
+    $paid = (float) q_val("SELECT COALESCE(SUM(amount),0) FROM payments WHERE invoice_id = ? AND direction = 'in'", [$invoiceId]);
+    $status = $inv['status'] === 'cancelled' ? 'cancelled'
+        : ($paid <= 0 ? 'unpaid' : ($paid + 0.009 >= (float) $inv['grand_total'] ? 'paid' : 'partial'));
+    q('UPDATE invoices SET amount_paid = ?, status = ? WHERE id = ?', [$paid, $status, $invoiceId]);
+}
+
+function refresh_purchase_payment(int $purchaseId): void
+{
+    $pur = q_row('SELECT grand_total FROM purchases WHERE id = ?', [$purchaseId]);
+    if (!$pur) {
+        return;
+    }
+    $paid = (float) q_val("SELECT COALESCE(SUM(amount),0) FROM payments WHERE purchase_id = ? AND direction = 'out'", [$purchaseId]);
+    $status = $paid <= 0 ? 'unpaid' : ($paid + 0.009 >= (float) $pur['grand_total'] ? 'paid' : 'partial');
+    q('UPDATE purchases SET amount_paid = ?, status = ? WHERE id = ?', [$paid, $status, $purchaseId]);
+}
+
+/** Outstanding (receivable) for a customer: invoices minus payments received. */
+function customer_balance(int $customerId): float
+{
+    $billed = (float) q_val("SELECT COALESCE(SUM(grand_total),0) FROM invoices WHERE customer_id = ? AND status <> 'cancelled'", [$customerId]);
+    $paid = (float) q_val("SELECT COALESCE(SUM(amount),0) FROM payments WHERE customer_id = ? AND direction = 'in'", [$customerId]);
+    return round($billed - $paid, 2);
 }

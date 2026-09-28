@@ -26,7 +26,9 @@ if ($search !== '') {
 }
 $rows = q_all("SELECT c.*,
         (SELECT COUNT(*) FROM quotations qt WHERE qt.customer_id = c.id) quote_count,
-        (SELECT COALESCE(SUM(grand_total),0) FROM quotations qt WHERE qt.customer_id = c.id AND qt.status = 'accepted') revenue
+        (SELECT COALESCE(SUM(grand_total),0) FROM invoices i WHERE i.customer_id = c.id AND i.status <> 'cancelled') revenue,
+        (SELECT COALESCE(SUM(grand_total),0) FROM invoices i WHERE i.customer_id = c.id AND i.status <> 'cancelled')
+            - (SELECT COALESCE(SUM(amount),0) FROM payments pm WHERE pm.customer_id = c.id AND pm.direction = 'in') outstanding
     FROM customers c" . ($where ? ' WHERE ' . implode(' AND ', $where) : '') . ' ORDER BY c.created_at DESC', $params);
 
 $pageTitle = 'Customers';
@@ -55,7 +57,7 @@ require __DIR__ . '/partials/header.php';
         <?php else: ?>
         <div class="table-responsive">
             <table class="table table-hover" id="custTable">
-                <thead><tr><th>Customer</th><th>Type</th><th>Contact</th><th>City</th><th>Quotes</th><th>Revenue</th><th data-orderable="false"></th></tr></thead>
+                <thead><tr><th>Customer</th><th>Type</th><th>Contact</th><th>City</th><th>Quotes</th><th>Billed</th><th>Outstanding</th><th data-orderable="false"></th></tr></thead>
                 <tbody>
                 <?php foreach ($rows as $c): $r = $c; ?>
                     <tr>
@@ -73,9 +75,11 @@ require __DIR__ . '/partials/header.php';
                         <td><?= e($c['city'] ?: '—') ?></td>
                         <td><?= (int) $c['quote_count'] ?></td>
                         <td data-order="<?= (float) $c['revenue'] ?>"><?= money($c['revenue']) ?></td>
+                        <td data-order="<?= (float) $c['outstanding'] ?>" class="<?= $c['outstanding'] > 0 ? 'text-danger fw-semibold' : 'text-muted' ?>"><?= money($c['outstanding']) ?></td>
                         <td class="text-end">
                             <div class="hstack gap-2 justify-content-end">
-                                <a href="quotation-form.php?customer_id=<?= (int) $c['id'] ?>" class="avatar-text avatar-md" title="New quotation"><i class="feather-file-plus"></i></a>
+                                <a href="invoice-form.php?customer_id=<?= (int) $c['id'] ?>" class="avatar-text avatar-md" title="New invoice"><i class="feather-file-plus"></i></a>
+                                <a href="customer-ledger.php?id=<?= (int) $c['id'] ?>" class="avatar-text avatar-md" title="Ledger / statement"><i class="feather-book-open"></i></a>
                                 <a href="customer-form.php?id=<?= (int) $c['id'] ?>" class="avatar-text avatar-md" title="Edit"><i class="feather-edit-3"></i></a>
                                 <form method="post" class="m-0" data-confirm="Delete this customer? Their quotations are kept."><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
                                     <button class="avatar-text avatar-md border-0 text-danger" title="Delete"><i class="feather-trash-2"></i></button>

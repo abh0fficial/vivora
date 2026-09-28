@@ -151,7 +151,7 @@ require __DIR__ . '/partials/header.php';
     <input type="hidden" name="enquiry_id" value="<?= (int) $data['enquiry_id'] ?>">
     <div class="row">
         <div class="col-xl-8">
-            <div class="card">
+            <div class="card stretch stretch-full">
                 <div class="card-header"><h5 class="card-title">Bill to</h5>
                     <select name="customer_id" id="customerPick" class="form-select form-select-sm" style="max-width:280px">
                         <option value="">— Pick a saved customer —</option>
@@ -172,6 +172,24 @@ require __DIR__ . '/partials/header.php';
                 </div>
             </div>
 
+        </div>
+        <div class="col-xl-4">
+            <div class="card stretch stretch-full">
+                <div class="card-header"><h5 class="card-title"><?= e($quote['quote_no'] ?? $data['quote_no']) ?></h5></div>
+                <div class="card-body">
+                    <div class="mb-3"><label class="form-label">Quotation date</label><input type="date" name="quote_date" class="form-control" value="<?= e($data['quote_date']) ?>"></div>
+                    <div class="mb-3"><label class="form-label">Valid until</label><input type="date" name="valid_until" class="form-control" value="<?= e($data['valid_until']) ?>"></div>
+                    <div class="mb-3"><label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <?php foreach (['draft' => 'Draft', 'sent' => 'Sent to customer', 'accepted' => 'Accepted (order)', 'rejected' => 'Rejected'] as $k => $v): ?>
+                                <option value="<?= $k ?>" <?= $data['status'] === $k ? 'selected' : '' ?>><?= $v ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
             <div class="card">
                 <div class="card-header"><h5 class="card-title">Items</h5></div>
                 <div class="card-body p-0">
@@ -204,6 +222,8 @@ require __DIR__ . '/partials/header.php';
                 </div>
             </div>
 
+        </div>
+        <div class="col-xl-7">
             <div class="card">
                 <div class="card-body">
                     <div class="mb-3"><label class="form-label">Notes to customer</label><textarea name="notes" class="form-control" rows="3"><?= e($data['notes']) ?></textarea></div>
@@ -211,21 +231,9 @@ require __DIR__ . '/partials/header.php';
                 </div>
             </div>
         </div>
-
-        <div class="col-xl-4">
+        <div class="col-xl-5">
             <div class="card">
-                <div class="card-header"><h5 class="card-title"><?= e($quote['quote_no'] ?? $data['quote_no']) ?></h5></div>
                 <div class="card-body">
-                    <div class="mb-3"><label class="form-label">Quotation date</label><input type="date" name="quote_date" class="form-control" value="<?= e($data['quote_date']) ?>"></div>
-                    <div class="mb-3"><label class="form-label">Valid until</label><input type="date" name="valid_until" class="form-control" value="<?= e($data['valid_until']) ?>"></div>
-                    <div class="mb-3"><label class="form-label">Status</label>
-                        <select name="status" class="form-select">
-                            <?php foreach (['draft' => 'Draft', 'sent' => 'Sent to customer', 'accepted' => 'Accepted (order)', 'rejected' => 'Rejected'] as $k => $v): ?>
-                                <option value="<?= $k ?>" <?= $data['status'] === $k ? 'selected' : '' ?>><?= $v ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <hr>
                     <div class="d-flex justify-content-between mb-2"><span class="text-muted">Subtotal</span><strong id="tSub">₹0.00</strong></div>
                     <div class="d-flex justify-content-between align-items-center mb-2"><span class="text-muted">Discount (₹)</span><input type="number" step="0.01" min="0" name="discount" id="discount" class="form-control form-control-sm text-end" style="width:130px" value="<?= e((float) $data['discount']) ?>"></div>
                     <div class="d-flex justify-content-between mb-2"><span class="text-muted">GST</span><strong id="tTax">₹0.00</strong></div>

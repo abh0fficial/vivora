@@ -14,35 +14,57 @@ $lowStock = (int) q_val('SELECT COUNT(*) FROM products WHERE is_active = 1 AND m
 $notif = admin_notifications($admin);
 $initials = strtoupper(substr($admin['full_name'] ?: $admin['username'], 0, 1));
 
+$overdueInvoices = (int) q_val("SELECT COUNT(*) FROM invoices WHERE status IN ('unpaid','partial') AND due_date < CURDATE()");
+$owner = is_owner($admin);
 $nav = [
     ['caption' => 'Overview'],
     ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'airplay', 'url' => 'index.php'],
-    ['caption' => 'Catalogue'],
+    ['caption' => 'Billing'],
+    ['key' => 'invoices', 'label' => 'Sales Invoices', 'icon' => 'file-text', 'badge' => $overdueInvoices, 'children' => [
+        ['key' => 'invoices', 'label' => 'All Invoices', 'url' => 'invoices.php'],
+        ['key' => 'invoice-new', 'label' => 'Create Invoice', 'url' => 'invoice-form.php'],
+    ]],
+    ['key' => 'payments-in', 'label' => 'Payments', 'icon' => 'credit-card', 'children' => [
+        ['key' => 'payments-in', 'label' => 'Payments Received', 'url' => 'payments.php?type=in'],
+        ['key' => 'payments-out', 'label' => 'Payments Made', 'url' => 'payments.php?type=out'],
+    ]],
+    ['key' => 'quotations', 'label' => 'Quotations', 'icon' => 'clipboard', 'children' => [
+        ['key' => 'quotations', 'label' => 'All Quotations', 'url' => 'quotations.php'],
+        ['key' => 'quotation-new', 'label' => 'Create Quotation', 'url' => 'quotation-form.php'],
+    ]],
+    ['key' => 'customers', 'label' => 'Customers', 'icon' => 'users', 'url' => 'customers.php'],
+    ['caption' => 'Purchases & Expenses'],
+    ['key' => 'purchases', 'label' => 'Purchases', 'icon' => 'shopping-cart', 'children' => [
+        ['key' => 'purchases', 'label' => 'Purchase Bills', 'url' => 'purchases.php'],
+        ['key' => 'purchase-new', 'label' => 'New Purchase Bill', 'url' => 'purchase-form.php'],
+        ['key' => 'suppliers', 'label' => 'Suppliers', 'url' => 'suppliers.php'],
+    ]],
+    ['key' => 'expenses', 'label' => 'Expenses', 'icon' => 'dollar-sign', 'url' => 'expenses.php'],
+    ['caption' => 'Catalogue & Stock'],
     ['key' => 'products', 'label' => 'Products', 'icon' => 'package', 'children' => [
         ['key' => 'products', 'label' => 'All Products', 'url' => 'products.php'],
         ['key' => 'product-new', 'label' => 'Add Product', 'url' => 'product-form.php'],
         ['key' => 'categories', 'label' => 'Categories', 'url' => 'categories.php'],
     ]],
     ['key' => 'inventory', 'label' => 'Inventory', 'icon' => 'layers', 'url' => 'inventory.php', 'badge' => $lowStock, 'badgeColor' => 'warning'],
-    ['caption' => 'Sales & CRM'],
+    ['caption' => 'CRM & Service'],
     ['key' => 'enquiries', 'label' => 'Enquiries', 'icon' => 'inbox', 'badge' => $newEnquiries, 'children' => [
         ['key' => 'enquiries', 'label' => 'All Enquiries', 'url' => 'enquiries.php'],
         ['key' => 'enquiry-new', 'label' => 'Add Enquiry', 'url' => 'enquiry-form.php'],
     ]],
-    ['key' => 'quotations', 'label' => 'Quotations', 'icon' => 'file-text', 'children' => [
-        ['key' => 'quotations', 'label' => 'All Quotations', 'url' => 'quotations.php'],
-        ['key' => 'quotation-new', 'label' => 'Create Quotation', 'url' => 'quotation-form.php'],
-    ]],
-    ['key' => 'customers', 'label' => 'Customers', 'icon' => 'users', 'url' => 'customers.php'],
-    ['caption' => 'Service'],
     ['key' => 'service', 'label' => 'Service Requests', 'icon' => 'tool', 'url' => 'service-requests.php', 'badge' => $openService, 'badgeColor' => 'danger'],
+    ['caption' => 'Reports'],
+    ['key' => 'billing-reports', 'label' => 'Billing & GST Reports', 'icon' => 'pie-chart', 'url' => 'billing-reports.php'],
+    ['key' => 'reports', 'label' => 'Business Reports', 'icon' => 'bar-chart-2', 'url' => 'reports.php'],
     ['caption' => 'Administration'],
-    ['key' => 'reports', 'label' => 'Reports', 'icon' => 'bar-chart-2', 'url' => 'reports.php'],
-    ['key' => 'settings', 'label' => 'Company Settings', 'icon' => 'settings', 'url' => 'settings.php'],
+    ['key' => 'settings', 'label' => 'Company Settings', 'icon' => 'settings', 'url' => 'settings.php', 'owner' => true],
+    ['key' => 'users', 'label' => 'Users & Roles', 'icon' => 'user-check', 'url' => 'users.php', 'owner' => true],
+    ['key' => 'backup', 'label' => 'Backup', 'icon' => 'download-cloud', 'url' => 'backup.php', 'owner' => true],
     ['key' => 'profile', 'label' => 'My Profile', 'icon' => 'user', 'url' => 'profile.php'],
-    ['key' => 'activity', 'label' => 'Activity Log', 'icon' => 'clock', 'url' => 'activity.php'],
-    ['key' => 'system', 'label' => 'System Check', 'icon' => 'database', 'url' => 'system.php'],
+    ['key' => 'activity', 'label' => 'Activity Log', 'icon' => 'clock', 'url' => 'activity.php', 'owner' => true],
+    ['key' => 'system', 'label' => 'System Check', 'icon' => 'database', 'url' => 'system.php', 'owner' => true],
 ];
+$nav = array_values(array_filter($nav, fn($i) => $owner || empty($i['owner'])));
 
 function nav_is_active(array $item, string $active): bool
 {
@@ -96,7 +118,7 @@ function nav_is_active(array $item, string $active): bool
                             <a href="javascript:void(0);" class="nxl-link">
                                 <span class="nxl-micon"><i class="feather-<?= e($item['icon']) ?>"></i></span>
                                 <span class="nxl-mtext"><?= e($item['label']) ?></span>
-                                <?php if (!empty($item['badge'])): ?><span class="badge bg-primary ms-auto me-2 vh-nav-badge"><?= (int) $item['badge'] ?></span><?php endif; ?>
+                                <?php if (!empty($item['badge'])): ?><span class="badge bg-<?= e($item['badgeColor'] ?? ($item['key'] === 'invoices' ? 'danger' : 'primary')) ?> ms-auto me-2 vh-nav-badge"><?= (int) $item['badge'] ?></span><?php endif; ?>
                                 <span class="nxl-arrow"><i class="feather-chevron-right"></i></span>
                             </a>
                             <ul class="nxl-submenu">
@@ -182,6 +204,8 @@ function nav_is_active(array $item, string $active): bool
                             <?php endforeach; ?>
                         </div>
                         <div class="text-center notifications-footer border-top py-2">
+                            <a href="invoices.php?status=overdue" class="fs-12 fw-semibold">Overdue</a>
+                            <span class="text-muted mx-2">·</span>
                             <a href="enquiries.php?status=new" class="fs-12 fw-semibold">Enquiries</a>
                             <span class="text-muted mx-2">·</span>
                             <a href="service-requests.php?status=open" class="fs-12 fw-semibold">Service</a>
@@ -199,14 +223,14 @@ function nav_is_active(array $item, string $active): bool
                             <div class="d-flex align-items-center">
                                 <span class="avatar-text avatar-md bg-primary text-white me-3"><?= e($initials) ?></span>
                                 <div>
-                                    <h6 class="text-dark mb-0"><?= e($admin['full_name'] ?: $admin['username']) ?> <span class="badge bg-soft-success text-success ms-1">Admin</span></h6>
+                                    <h6 class="text-dark mb-0"><?= e($admin['full_name'] ?: $admin['username']) ?> <span class="badge bg-soft-success text-success ms-1"><?= $owner ? 'Admin' : 'Staff' ?></span></h6>
                                     <span class="fs-12 fw-medium text-muted">@<?= e($admin['username']) ?></span>
                                 </div>
                             </div>
                         </div>
                         <a href="profile.php" class="dropdown-item"><i class="feather-user"></i><span>My Profile</span></a>
-                        <a href="settings.php" class="dropdown-item"><i class="feather-settings"></i><span>Company Settings</span></a>
-                        <a href="activity.php" class="dropdown-item"><i class="feather-activity"></i><span>Activity Log</span></a>
+                        <?php if ($owner): ?><a href="settings.php" class="dropdown-item"><i class="feather-settings"></i><span>Company Settings</span></a><?php endif; ?>
+                        <?php if ($owner): ?><a href="activity.php" class="dropdown-item"><i class="feather-activity"></i><span>Activity Log</span></a><a href="backup.php" class="dropdown-item"><i class="feather-download-cloud"></i><span>Backup</span></a><?php endif; ?>
                         <div class="dropdown-divider"></div>
                         <form action="logout.php" method="post" class="m-0">
                             <?= csrf_field() ?>

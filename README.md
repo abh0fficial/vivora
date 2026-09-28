@@ -6,23 +6,54 @@ This is the admin dashboard for Vivora Healthcare, a medical equipment supplier.
 
 ## What's included
 
-This is a private dashboard for your own day-to-day office work. There is no public website: opening your domain takes you straight to the dashboard login, and everything is entered by hand. The dashboard is built on the Duralux admin theme, recoloured to Vivora navy and teal.
+This is a private dashboard for your own day-to-day office work: GST billing, stock, CRM and service. There is no public website, and everything is entered by hand. It works on desktop and mobile. The dashboard is built on the Duralux admin theme, recoloured to Vivora navy and teal.
 
-- **Secure login**: hashed passwords, session timeout, and a 15-minute lockout after 5 failed attempts. Search engines are told not to index the dashboard.
-- **Dashboard**: live stats, a 12-month enquiries/service/sales chart, enquiries by category, pipeline, low-stock alerts, service desk and recent activity
-- **Products**: add, edit or delete products, with image and PDF brochure upload, price, GST, SKU, brand/model, specifications and active/inactive status
-- **Categories**: seeded with ECG Machines, ECG Diagnostic Papers, Patient Monitors, Defibrillators, Ultrasound Systems, Surgical Instruments, Medical Equipment, Diagnostic Machines, Surgical Accessories, Healthcare Consumables and Hospital Accessories. You can add more.
-- **Inventory**: stock in/out/set with a movement log and stock value. Alerts only fire for products with a minimum stock above 0.
-- **Enquiries**: log enquiries received by phone, WhatsApp, email, walk-in, referral, tender or dealer. Track them through the pipeline (New → Contacted → Quoted → Won/Lost), add notes, use the Call/WhatsApp/Email buttons, and save the contact as a customer with one click.
-- **Quotations**: GST-aware quote builder with discount, amount in words, printable/PDF layout, WhatsApp/email share and duplicate. Accepting a quote marks its enquiry as Won.
-- **Customers**: records for hospitals, clinics, diagnostic centres and dealers, with their quote and enquiry history
-- **Service requests**: installation, repair, AMC, calibration and training tickets, with priority, assigned engineer, visit date and notes
-- **Reports**: sales, enquiries and service reports for any date range
-- **Company settings**: phone, email, address, GSTIN, quotation terms and bank details (printed on quotations)
-- **Notifications** (bell icon): new enquiries, open service tickets, low-stock products and quotations about to expire. Includes an unread count, "Mark all as read", and a badge that refreshes every minute.
-- **Delete from any list**: quotations, enquiries, customers, service tickets and products can be deleted straight from their list pages, after a confirmation
-- **System Check**: shows every database table with its row count and any missing columns, server checks, and a one-click **Repair database** button
-- **CSV export** for Excel, **Activity log**, **My Profile** (change username or password)
+### Billing (GST)
+- **Tax invoices**
+  - CGST + SGST for customers in your own state, IGST for other states. The customer's state is detected from their GSTIN, or you pick the place of supply.
+  - HSN/SAC codes, units, a flat discount spread across lines, and round-off to the nearest rupee.
+  - Invoice numbers restart each financial year: `VH-INV-2026-27/0001`.
+  - Stock is deducted automatically, and editing, cancelling or deleting the invoice puts it back.
+  - The printable tax invoice shows both GSTINs, a per-HSN tax breakdown, amount in words, bank details, UPI ID and signature, with a PAID / CANCELLED stamp.
+  - Share on WhatsApp or by email, duplicate, cancel, delete (administrators only).
+- **Convert quotation → invoice** in one click.
+- **Payments received:** full or partial, by cash, UPI, bank transfer, cheque or card. You can record a payment against an invoice or as an advance, and each one gets a printable receipt (`VH-RCPT-…`).
+- **Customer ledger / statement of account:** opening balance, invoices, payments and running balance, printable.
+- **Outstanding and overdue tracking**, with overdue alerts in the notification bell.
+
+### Purchases & expenses
+- **Suppliers**, with how much you've bought from each and how much you still owe.
+- **Purchase bills**
+  - Stock goes up automatically and the product's cost price is updated.
+  - GST on purchases is tracked as input tax credit.
+  - Record full or partial supplier payments.
+- **Expenses** by category (rent, salaries, transport, …), with a summary by category.
+
+### Reports (all exportable to CSV for your CA)
+- Sales register
+- GST summary: output tax by rate, B2B/B2C split, input credit and net GST payable
+- HSN summary
+- Purchase register
+- Profit & loss: sales − cost of goods − expenses
+- Receivables ageing (0–30 / 31–60 / 61–90 / 90+ days) and supplier payables
+- Day book of every transaction
+- Business reports: enquiries, quotations and service
+
+### Stock, CRM & service
+- **Products and categories:** HSN code, cost price, selling price, GST, stock, images, PDF brochures
+- **Inventory:** stock in/out with a full movement log and low-stock alerts
+- **Enquiries:** log them from phone, WhatsApp, email or walk-in and track them New → Won
+- **Quotations** with print, WhatsApp share and duplicate
+- **Customers**, with billed and outstanding amounts
+- **Service requests:** installation, repair, AMC, calibration and training tickets
+
+### Administration
+- **Users & roles**
+  - **Administrator:** full access.
+  - **Staff:** day-to-day work, but no settings, users, backup or invoice deletion.
+- **Backup:** one-click download of the whole database as an `.sql` file. Restore it in phpMyAdmin.
+- **System Check:** every table with its row count, plus a one-click Repair database button.
+- **Other:** Company Settings, Activity Log, notification bell, CSV export on every list, and delete buttons with confirmation.
 
 ## Deploy on Hostinger
 
@@ -50,7 +81,9 @@ Deploy the new code the same way (Hostinger Git → **Deploy**). The dashboard u
 ### 3. Log in and finish setup
 - Dashboard: `https://your-domain/`, which redirects to `/admin/`
 - Username **`admin`**, password **`admin123`**. Change this right away in **My Profile**.
-- Fill in **Company Settings** (phone, email, address, GSTIN, bank details). They are printed on your quotations.
+- Fill in **Company Settings**: GSTIN, **company state** (needed for CGST/SGST vs IGST), phone, address, bank details and UPI ID. They are printed on invoices and quotations.
+- Add **HSN codes** and **cost prices** to your products so invoices and the profit report are complete.
+- Add staff logins under **Users & Roles** if other people will use the dashboard.
 - Edit the starter products: add prices, stock, images and brochures.
 - Turn on SSL in hPanel, then uncomment the HTTPS redirect lines in `.htaccess`.
 

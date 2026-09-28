@@ -1,6 +1,6 @@
 <?php
 require __DIR__ . '/../includes/auth.php';
-$admin = require_admin();
+$admin = require_owner();
 
 $page = max(1, (int) get('page', '1'));
 $per = 50;

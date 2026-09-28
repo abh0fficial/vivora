@@ -13,6 +13,15 @@ $stats = [
     'svc_open'      => (int) q_val("SELECT COUNT(*) FROM service_requests WHERE status IN ('open','scheduled','in_progress')"),
     'svc_total'     => (int) q_val('SELECT COUNT(*) FROM service_requests'),
     'q_accepted_m'  => (float) q_val("SELECT COALESCE(SUM(grand_total),0) FROM quotations WHERE status = 'accepted' AND quote_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')"),
+    'inv_month'     => (float) q_val("SELECT COALESCE(SUM(grand_total),0) FROM invoices WHERE status <> 'cancelled' AND invoice_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')"),
+    'inv_count_m'   => (int) q_val("SELECT COUNT(*) FROM invoices WHERE status <> 'cancelled' AND invoice_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')"),
+    'received_m'    => (float) q_val("SELECT COALESCE(SUM(amount),0) FROM payments WHERE direction = 'in' AND payment_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')"),
+    'outstanding'   => (float) q_val("SELECT COALESCE(SUM(grand_total - amount_paid),0) FROM invoices WHERE status IN ('unpaid','partial')"),
+    'overdue'       => (float) q_val("SELECT COALESCE(SUM(grand_total - amount_paid),0) FROM invoices WHERE status IN ('unpaid','partial') AND due_date < CURDATE()"),
+    'overdue_n'     => (int) q_val("SELECT COUNT(*) FROM invoices WHERE status IN ('unpaid','partial') AND due_date < CURDATE()"),
+    'purchases_m'   => (float) q_val("SELECT COALESCE(SUM(grand_total),0) FROM purchases WHERE bill_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')"),
+    'expenses_m'    => (float) q_val("SELECT COALESCE(SUM(amount),0) FROM expenses WHERE expense_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')"),
+    'payable'       => (float) q_val("SELECT COALESCE(SUM(grand_total - amount_paid),0) FROM purchases WHERE status IN ('unpaid','partial')"),
     'q_pipeline'    => (float) q_val("SELECT COALESCE(SUM(grand_total),0) FROM quotations WHERE status = 'sent'"),
     'q_count'       => (int) q_val('SELECT COUNT(*) FROM quotations'),
     'q_accepted'    => (int) q_val("SELECT COUNT(*) FROM quotations WHERE status = 'accepted'"),
@@ -34,7 +43,7 @@ foreach (q_all("SELECT DATE_FORMAT(created_at,'%Y-%m') m, COUNT(*) c FROM enquir
 foreach (q_all("SELECT DATE_FORMAT(created_at,'%Y-%m') m, COUNT(*) c FROM service_requests WHERE created_at >= ? GROUP BY m", [$since]) as $r) {
     if (isset($months[$r['m']])) $months[$r['m']]['svc'] = (int) $r['c'];
 }
-foreach (q_all("SELECT DATE_FORMAT(quote_date,'%Y-%m') m, SUM(grand_total) s FROM quotations WHERE status='accepted' AND quote_date >= ? GROUP BY m", [$since]) as $r) {
+foreach (q_all("SELECT DATE_FORMAT(invoice_date,'%Y-%m') m, SUM(grand_total) s FROM invoices WHERE status <> 'cancelled' AND invoice_date >= ? GROUP BY m", [$since]) as $r) {
     if (isset($months[$r['m']])) $months[$r['m']]['sales'] = round((float) $r['s'], 2);
 }
 
@@ -53,14 +62,14 @@ foreach (q_all('SELECT status, COUNT(*) c FROM enquiries GROUP BY status') as $r
 $recentEnquiries = q_all('SELECT e.*, p.name product_name FROM enquiries e LEFT JOIN products p ON p.id = e.product_id ORDER BY e.created_at DESC LIMIT 6');
 $lowStockItems = q_all('SELECT p.id, p.name, p.sku, p.stock_qty, p.min_stock, p.image, c.icon FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.is_active = 1 AND p.min_stock > 0 AND p.stock_qty <= p.min_stock ORDER BY p.stock_qty ASC, p.name LIMIT 6');
 $recentService = q_all("SELECT * FROM service_requests ORDER BY FIELD(status,'open','scheduled','in_progress','resolved','closed'), created_at DESC LIMIT 5");
-$recentQuotes = q_all('SELECT * FROM quotations ORDER BY created_at DESC LIMIT 5');
+$recentInvoices = q_all('SELECT * FROM invoices ORDER BY invoice_date DESC, id DESC LIMIT 6');
 $topProducts = q_all('SELECT p.id, p.name, COUNT(e.id) enquiries FROM products p LEFT JOIN enquiries e ON e.product_id = p.id WHERE p.is_active = 1 GROUP BY p.id ORDER BY enquiries DESC, p.name LIMIT 5');
 $activity = q_all('SELECT a.*, ad.username FROM activity_log a LEFT JOIN admins ad ON ad.id = a.admin_id ORDER BY a.created_at DESC LIMIT 6');
 
 $pageTitle = 'Dashboard';
 $activeNav = 'dashboard';
 $breadcrumbs = ['Dashboard' => null];
-$pageActions = '<a href="enquiry-form.php" class="btn btn-light-brand"><i class="feather-inbox me-2"></i>Add Enquiry</a><a href="product-form.php" class="btn btn-primary"><i class="feather-plus me-2"></i>Add Product</a>'
+$pageActions = '<a href="enquiry-form.php" class="btn btn-light-brand"><i class="feather-inbox me-2"></i>Add Enquiry</a><a href="invoice-form.php" class="btn btn-success"><i class="feather-file-plus me-2"></i>New Invoice</a><a href="product-form.php" class="btn btn-primary"><i class="feather-plus me-2"></i>Add Product</a>'
     . '<a href="quotation-form.php" class="btn btn-light-brand"><i class="feather-file-plus me-2"></i>New Quotation</a>';
 $extraJs = ['vendors/js/apexcharts.min.js'];
 require __DIR__ . '/partials/header.php';
@@ -72,11 +81,26 @@ $cards = [
      'foot' => $stats['enq_month'] . ' this month', 'right' => $stats['enq_won'] . ' won (' . $pct($stats['enq_won'], $stats['enq_total']) . '%)', 'pct' => $pct($stats['enq_won'], $stats['enq_total'])],
     ['label' => 'Open Service Requests', 'value' => $stats['svc_open'], 'icon' => 'tool', 'color' => 'danger', 'url' => 'service-requests.php',
      'foot' => $stats['svc_total'] . ' total tickets', 'right' => $pct($stats['svc_total'] - $stats['svc_open'], $stats['svc_total']) . '% resolved', 'pct' => $pct($stats['svc_total'] - $stats['svc_open'], $stats['svc_total'])],
-    ['label' => 'Sales This Month', 'value' => money($stats['q_accepted_m']), 'icon' => 'trending-up', 'color' => 'success', 'url' => 'quotations.php?status=accepted',
-     'foot' => money($stats['q_pipeline']) . ' in pipeline', 'right' => $stats['q_accepted'] . '/' . $stats['q_count'] . ' quotes won', 'pct' => $pct($stats['q_accepted'], $stats['q_count'])],
+    ['label' => 'Sales This Month', 'value' => money($stats['inv_month']), 'icon' => 'trending-up', 'color' => 'success', 'url' => 'invoices.php',
+     'foot' => $stats['inv_count_m'] . ' invoices', 'right' => money($stats['received_m']) . ' received', 'pct' => $stats['inv_month'] > 0 ? min(100, $pct($stats['received_m'], $stats['inv_month'])) : 0],
 ];
 ?>
 <div class="row">
+    <?php foreach ([
+        ['Received this month', money($stats['received_m']), 'check-circle', 'success', 'payments.php?type=in'],
+        ['Outstanding from customers', money($stats['outstanding']), 'clock', 'warning', 'invoices.php?status=due'],
+        ['Overdue (' . $stats['overdue_n'] . ' invoices)', money($stats['overdue']), 'alert-triangle', 'danger', 'invoices.php?status=overdue'],
+        ['Purchases + expenses this month', money($stats['purchases_m'] + $stats['expenses_m']), 'shopping-cart', 'info', 'billing-reports.php?tab=pl'],
+    ] as [$l, $v, $i, $col, $u]): ?>
+        <div class="col-xxl-3 col-md-6">
+            <a href="<?= $u ?>" class="card stretch stretch-full text-reset vh-mini-stat">
+                <div class="card-body d-flex align-items-center gap-3 py-3">
+                    <span class="avatar-text avatar-md bg-soft-<?= $col ?> text-<?= $col ?>"><i class="feather-<?= $i ?>"></i></span>
+                    <div><div class="fs-6 fw-bold text-dark"><?= e($v) ?></div><div class="fs-12 text-muted"><?= e($l) ?></div></div>
+                </div>
+            </a>
+        </div>
+    <?php endforeach; ?>
     <?php foreach ($cards as $c): ?>
     <div class="col-xxl-3 col-md-6">
         <div class="card stretch stretch-full">
@@ -280,24 +304,25 @@ $cards = [
     <div class="col-xxl-8">
         <div class="card stretch stretch-full">
             <div class="card-header">
-                <h5 class="card-title">Recent Quotations</h5>
-                <a href="quotation-form.php" class="btn btn-sm btn-primary"><i class="feather-plus me-1"></i>Create</a>
+                <h5 class="card-title">Recent Invoices</h5>
+                <div class="d-flex gap-2"><a href="invoices.php" class="btn btn-sm btn-light-brand">View all</a><a href="invoice-form.php" class="btn btn-sm btn-primary"><i class="feather-plus me-1"></i>Create</a></div>
             </div>
             <div class="card-body custom-card-action p-0">
-                <?php if (!$recentQuotes): ?>
-                    <div class="vh-empty"><i class="feather-file-text"></i>No quotations yet. Create one from an enquiry or from scratch.</div>
+                <?php if (!$recentInvoices): ?>
+                    <div class="vh-empty"><i class="feather-file-text"></i>No invoices yet. <a href="invoice-form.php">Create your first GST invoice</a> or convert a quotation.</div>
                 <?php else: ?>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
-                        <thead><tr><th>Quote #</th><th>Customer</th><th>Date</th><th>Status</th><th class="text-end">Amount</th></tr></thead>
+                        <thead><tr><th>Invoice #</th><th>Customer</th><th>Date</th><th>Status</th><th class="text-end">Amount</th><th class="text-end">Balance</th></tr></thead>
                         <tbody>
-                        <?php foreach ($recentQuotes as $qt): ?>
+                        <?php foreach ($recentInvoices as $iv): $b = $iv['status'] === 'cancelled' ? 0 : $iv['grand_total'] - $iv['amount_paid']; $od = $b > 0 && $iv['due_date'] && $iv['due_date'] < date('Y-m-d'); ?>
                             <tr>
-                                <td><a href="quotation-view.php?id=<?= (int) $qt['id'] ?>" class="fw-semibold"><?= e($qt['quote_no']) ?></a></td>
-                                <td><?= e($qt['customer_org'] ?: $qt['customer_name']) ?></td>
-                                <td class="fs-12"><?= e(fmt_date($qt['quote_date'])) ?></td>
-                                <td><?= status_badge($qt['status']) ?></td>
-                                <td class="text-end fw-semibold"><?= money($qt['grand_total']) ?></td>
+                                <td><a href="invoice-view.php?id=<?= (int) $iv['id'] ?>" class="fw-semibold"><?= e($iv['invoice_no']) ?></a></td>
+                                <td><?= e($iv['customer_org'] ?: $iv['customer_name']) ?></td>
+                                <td class="fs-12"><?= e(fmt_date($iv['invoice_date'])) ?></td>
+                                <td><?= status_badge($od ? 'overdue' : $iv['status']) ?></td>
+                                <td class="text-end fw-semibold"><?= money($iv['grand_total']) ?></td>
+                                <td class="text-end <?= $b > 0 ? 'text-danger' : 'text-muted' ?>"><?= money(max(0, $b)) ?></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
@@ -345,7 +370,7 @@ $inlineJs = 'var VH_MONTHS=' . json_encode(array_column($chartMonths, 'label')) 
         series: [
             { name: 'Enquiries', type: 'column', data: VH_ENQ },
             { name: 'Service requests', type: 'column', data: VH_SVC },
-            { name: 'Sales (₹)', type: 'area', data: VH_SALES }
+            { name: 'Invoiced sales (₹)', type: 'area', data: VH_SALES }
         ],
         colors: [navy, teal, amber],
         stroke: { width: [0, 0, 2], curve: 'smooth' },
@@ -355,7 +380,7 @@ $inlineJs = 'var VH_MONTHS=' . json_encode(array_column($chartMonths, 'label')) 
         yaxis: [
             { seriesName: 'Enquiries', title: { text: 'Count' }, min: 0, forceNiceScale: true, labels: { formatter: function (v) { return Number.isInteger(v) ? v : ''; } } },
             { seriesName: 'Enquiries', show: false },
-            { seriesName: 'Sales (₹)', opposite: true, title: { text: 'Sales (₹)' }, labels: { formatter: function (v) { return '₹' + Math.round(v).toLocaleString('en-IN'); } } }
+            { seriesName: 'Invoiced sales (₹)', opposite: true, title: { text: 'Sales (₹)' }, labels: { formatter: function (v) { return '₹' + Math.round(v).toLocaleString('en-IN'); } } }
         ],
         legend: { position: 'top', horizontalAlign: 'right' },
         dataLabels: { enabled: false },

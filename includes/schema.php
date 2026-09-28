@@ -18,6 +18,8 @@ function vivora_schema(): array
             email VARCHAR(160) NOT NULL DEFAULT '',
             last_login_at DATETIME NULL,
             notifications_seen_at DATETIME NULL,
+            role ENUM('admin','staff') NOT NULL DEFAULT 'admin',
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
@@ -51,6 +53,8 @@ function vivora_schema(): array
             name VARCHAR(200) NOT NULL,
             slug VARCHAR(220) NOT NULL UNIQUE,
             sku VARCHAR(60) NOT NULL DEFAULT '',
+            hsn_code VARCHAR(20) NOT NULL DEFAULT '',
+            purchase_price DECIMAL(12,2) NULL,
             brand VARCHAR(120) NOT NULL DEFAULT '',
             model VARCHAR(120) NOT NULL DEFAULT '',
             short_description VARCHAR(300) NOT NULL DEFAULT '',
@@ -192,6 +196,144 @@ function vivora_schema(): array
             CONSTRAINT fk_moves_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
+        "CREATE TABLE IF NOT EXISTS invoices (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            invoice_no VARCHAR(40) NOT NULL UNIQUE,
+            customer_id INT UNSIGNED NULL,
+            quotation_id INT UNSIGNED NULL,
+            customer_name VARCHAR(160) NOT NULL DEFAULT '',
+            customer_org VARCHAR(200) NOT NULL DEFAULT '',
+            customer_email VARCHAR(160) NOT NULL DEFAULT '',
+            customer_phone VARCHAR(30) NOT NULL DEFAULT '',
+            customer_address VARCHAR(400) NOT NULL DEFAULT '',
+            customer_gstin VARCHAR(20) NOT NULL DEFAULT '',
+            place_of_supply VARCHAR(60) NOT NULL DEFAULT '',
+            is_igst TINYINT(1) NOT NULL DEFAULT 0,
+            invoice_date DATE NOT NULL,
+            due_date DATE NULL,
+            status ENUM('unpaid','partial','paid','cancelled') NOT NULL DEFAULT 'unpaid',
+            subtotal DECIMAL(14,2) NOT NULL DEFAULT 0,
+            discount DECIMAL(14,2) NOT NULL DEFAULT 0,
+            taxable_total DECIMAL(14,2) NOT NULL DEFAULT 0,
+            cgst DECIMAL(14,2) NOT NULL DEFAULT 0,
+            sgst DECIMAL(14,2) NOT NULL DEFAULT 0,
+            igst DECIMAL(14,2) NOT NULL DEFAULT 0,
+            round_off DECIMAL(8,2) NOT NULL DEFAULT 0,
+            grand_total DECIMAL(14,2) NOT NULL DEFAULT 0,
+            amount_paid DECIMAL(14,2) NOT NULL DEFAULT 0,
+            stock_applied TINYINT(1) NOT NULL DEFAULT 0,
+            notes TEXT NULL,
+            terms TEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_status (status),
+            INDEX idx_date (invoice_date),
+            CONSTRAINT fk_invoices_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+            CONSTRAINT fk_invoices_quotation FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        "CREATE TABLE IF NOT EXISTS invoice_items (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            invoice_id INT UNSIGNED NOT NULL,
+            product_id INT UNSIGNED NULL,
+            description VARCHAR(300) NOT NULL,
+            hsn_code VARCHAR(20) NOT NULL DEFAULT '',
+            qty DECIMAL(10,2) NOT NULL DEFAULT 1,
+            unit VARCHAR(30) NOT NULL DEFAULT '',
+            unit_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+            gst_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+            line_total DECIMAL(14,2) NOT NULL DEFAULT 0,
+            taxable DECIMAL(14,2) NOT NULL DEFAULT 0,
+            tax_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+            sort_order INT NOT NULL DEFAULT 0,
+            CONSTRAINT fk_inv_items_invoice FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+            CONSTRAINT fk_inv_items_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        "CREATE TABLE IF NOT EXISTS suppliers (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(200) NOT NULL,
+            contact_person VARCHAR(160) NOT NULL DEFAULT '',
+            phone VARCHAR(30) NOT NULL DEFAULT '',
+            email VARCHAR(160) NOT NULL DEFAULT '',
+            gstin VARCHAR(20) NOT NULL DEFAULT '',
+            address VARCHAR(400) NOT NULL DEFAULT '',
+            city VARCHAR(80) NOT NULL DEFAULT '',
+            state VARCHAR(80) NOT NULL DEFAULT '',
+            notes TEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        "CREATE TABLE IF NOT EXISTS purchases (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            bill_no VARCHAR(60) NOT NULL DEFAULT '',
+            supplier_id INT UNSIGNED NULL,
+            supplier_name VARCHAR(200) NOT NULL DEFAULT '',
+            bill_date DATE NOT NULL,
+            due_date DATE NULL,
+            status ENUM('unpaid','partial','paid') NOT NULL DEFAULT 'unpaid',
+            subtotal DECIMAL(14,2) NOT NULL DEFAULT 0,
+            tax_total DECIMAL(14,2) NOT NULL DEFAULT 0,
+            grand_total DECIMAL(14,2) NOT NULL DEFAULT 0,
+            amount_paid DECIMAL(14,2) NOT NULL DEFAULT 0,
+            stock_applied TINYINT(1) NOT NULL DEFAULT 0,
+            notes TEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_date (bill_date),
+            CONSTRAINT fk_purchases_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        "CREATE TABLE IF NOT EXISTS purchase_items (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            purchase_id INT UNSIGNED NOT NULL,
+            product_id INT UNSIGNED NULL,
+            description VARCHAR(300) NOT NULL,
+            qty DECIMAL(10,2) NOT NULL DEFAULT 1,
+            unit_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+            gst_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+            line_total DECIMAL(14,2) NOT NULL DEFAULT 0,
+            tax_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+            sort_order INT NOT NULL DEFAULT 0,
+            CONSTRAINT fk_pur_items_purchase FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
+            CONSTRAINT fk_pur_items_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        "CREATE TABLE IF NOT EXISTS payments (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            receipt_no VARCHAR(40) NOT NULL DEFAULT '',
+            direction ENUM('in','out') NOT NULL DEFAULT 'in',
+            invoice_id INT UNSIGNED NULL,
+            purchase_id INT UNSIGNED NULL,
+            customer_id INT UNSIGNED NULL,
+            supplier_id INT UNSIGNED NULL,
+            party_name VARCHAR(200) NOT NULL DEFAULT '',
+            payment_date DATE NOT NULL,
+            amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+            mode ENUM('cash','upi','bank_transfer','cheque','card','other') NOT NULL DEFAULT 'cash',
+            reference VARCHAR(120) NOT NULL DEFAULT '',
+            notes VARCHAR(400) NOT NULL DEFAULT '',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_date (payment_date),
+            CONSTRAINT fk_pay_invoice FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+            CONSTRAINT fk_pay_purchase FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
+            CONSTRAINT fk_pay_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+            CONSTRAINT fk_pay_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        "CREATE TABLE IF NOT EXISTS expenses (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            expense_date DATE NOT NULL,
+            category VARCHAR(80) NOT NULL DEFAULT 'Other',
+            description VARCHAR(300) NOT NULL DEFAULT '',
+            paid_to VARCHAR(160) NOT NULL DEFAULT '',
+            amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+            mode ENUM('cash','upi','bank_transfer','cheque','card','other') NOT NULL DEFAULT 'cash',
+            reference VARCHAR(120) NOT NULL DEFAULT '',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_date (expense_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
         "CREATE TABLE IF NOT EXISTS activity_log (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             admin_id INT UNSIGNED NULL,
@@ -296,6 +438,13 @@ function vivora_default_settings(): array
         'hero_title'     => 'Trusted Medical Equipment for Better Patient Care',
         'hero_subtitle'  => 'ECG machines, patient monitors, defibrillators, ultrasound systems, surgical instruments and hospital consumables — sourced, supplied and supported by Vivora Healthcare.',
         'quote_prefix'   => 'VH-Q-',
+        'invoice_prefix' => 'VH-INV-',
+        'receipt_prefix' => 'VH-RCPT-',
+        'invoice_due_days' => '15',
+        'company_state'  => '',
+        'upi_id'         => '',
+        'invoice_terms'  => "1. Goods once sold will not be taken back or exchanged.\n2. Interest @18% p.a. will be charged on payments delayed beyond the due date.\n3. Warranty as per manufacturer terms.\n4. Subject to local jurisdiction.",
+        'expense_categories' => "Rent\nSalaries\nTransport & Freight\nTravel\nElectricity\nTelephone & Internet\nOffice Supplies\nRepairs & Maintenance\nMarketing\nBank Charges\nTaxes & Fees\nOther",
         'quote_validity_days' => '15',
         'quote_terms'    => "1. Prices are in INR and GST is charged as applicable.\n2. Delivery within 7–15 working days from confirmed order, subject to stock.\n3. Payment: 100% advance unless otherwise agreed.\n4. Warranty as per manufacturer terms.\n5. Installation and demo included where applicable.",
         'bank_details'   => '',
@@ -369,7 +518,7 @@ function vivora_install(PDO $pdo, string $adminUser, string $adminPass): array
 }
 
 /** Bump when the schema changes; the dashboard repairs/upgrades the database automatically. */
-const VIVORA_SCHEMA_VERSION = '4';
+const VIVORA_SCHEMA_VERSION = '5';
 
 /**
  * Expected tables and columns, parsed from vivora_schema():
