@@ -40,7 +40,7 @@ $company = setting('company_name', 'Vivora Healthcare');
     <link rel="stylesheet" href="<?= asset('css/bootstrap.min.css') ?>">
     <link rel="stylesheet" href="<?= asset('vendors/css/vendors.min.css') ?>">
     <link rel="stylesheet" href="<?= asset('css/theme.min.css') ?>">
-    <link rel="stylesheet" href="<?= asset('css/admin.css') ?>?v=<?= APP_VERSION ?>">
+    <link rel="stylesheet" href="<?= asset('css/admin.css') ?>">
     <style>
         .auth-cover-content-inner { background: linear-gradient(135deg, #eaf2fa 0%, #e6f6f5 100%); }
         .vh-login-tagline { color: var(--vh-navy); font-weight: 600; }

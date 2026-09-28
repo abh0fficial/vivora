@@ -38,7 +38,13 @@ function base_url(string $path = ''): string
 
 function asset(string $path): string
 {
-    return base_url('assets/' . ltrim($path, '/'));
+    $path = ltrim($path, '/');
+    $url = base_url('assets/' . $path);
+    // Cache-busting: the file's modified time changes on every upload, so browsers fetch the new version.
+    if (preg_match('/\.(css|js)$/', $path) && defined('APP_ROOT') && is_file(APP_ROOT . '/assets/' . $path)) {
+        $url .= '?v=' . filemtime(APP_ROOT . '/assets/' . $path);
+    }
+    return $url;
 }
 
 function redirect(string $path): void

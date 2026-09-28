@@ -94,7 +94,16 @@ function nav_is_active(array $item, string $active): bool
     <link rel="stylesheet" href="<?= asset($css) ?>">
     <?php endforeach; ?>
     <link rel="stylesheet" href="<?= asset('css/theme.min.css') ?>">
-    <link rel="stylesheet" href="<?= asset('css/admin.css') ?>?v=<?= APP_VERSION ?>">
+    <link rel="stylesheet" href="<?= asset('css/admin.css') ?>">
+    <style>
+        /* Phones & tablets: hide the page title / breadcrumb strip (kept inline so a cached stylesheet can't bring it back). */
+        @media (max-width: 991.98px) {
+            .nxl-content .page-header .page-header-left { display: none !important; }
+            .nxl-content .page-header.vh-no-actions { display: none !important; }
+            .nxl-content .page-header { padding: 12px 16px !important; height: auto !important; min-height: 0 !important; }
+            .nxl-content .page-header .page-header-right { display: block !important; margin-left: 0 !important; width: 100%; }
+        }
+    </style>
     <script>try { localStorage.removeItem('app-skin-dark'); localStorage.removeItem('app-skin'); } catch (e) {}</script>
 </head>
 <body>
