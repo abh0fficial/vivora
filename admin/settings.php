@@ -4,7 +4,9 @@ $admin = require_owner();
 
 $groups = [
     'Company' => [
-        'company_name' => ['Company name', 'text'],
+        'company_name' => ['Trade name (printed on invoices)', 'text'],
+        'legal_name' => ['Legal name (as on GST certificate)', 'text'],
+        'business_type' => ['Constitution of business', 'text'],
         'tagline' => ['Tagline', 'text'],
         'gstin' => ['GSTIN', 'text'],
     ],

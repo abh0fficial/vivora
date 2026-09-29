@@ -102,3 +102,27 @@ html.app-skin-dark .vh-kv dd { color: #e2e8f0; }
   .page-header { padding: 12px 16px !important; height: auto !important; min-height: 0 !important; }
   .page-header .page-header-right { margin-left: 0 !important; width: 100%; }
 }
+
+/* Dashboard tiles & transactions feed */
+.vh-tile .card-body { padding: 18px 20px; }
+.vh-tile-collect { background: #effaf3; border-color: #bfe8cf !important; }
+.vh-tile-pay { background: #fdf1f1; border-color: #f3c6c6 !important; }
+.vh-feed-item { padding: 16px 22px; border-bottom: 1px solid #eef1f5; }
+@media (min-width: 1200px) { .row.g-0 > .col-xl-6:nth-child(odd) .vh-feed-item { border-right: 1px solid #eef1f5; } }
+
+/* Mobile bottom navigation & quick actions (like the billing app) */
+.vh-bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1030; display: flex; background: #fff; border-top: 1px solid #e5e9f0; box-shadow: 0 -4px 16px rgba(15, 34, 51, .06); padding-bottom: env(safe-area-inset-bottom); }
+.vh-bottom-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 7px; color: #64748b; font-size: 11px; font-weight: 600; }
+.vh-bottom-nav a i { font-size: 20px; }
+.vh-bottom-nav a.active { color: var(--vh-navy); }
+.vh-fab-bar { position: fixed; left: 10px; right: 10px; bottom: 70px; z-index: 1031; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.vh-fab { flex: 1; text-align: center; padding: 13px 10px; border-radius: 999px; font-weight: 700; font-size: 14px; color: #fff !important; box-shadow: 0 8px 20px rgba(15, 34, 51, .22); white-space: nowrap; }
+.vh-fab-dark { background: #2b2d42; }
+.vh-fab-primary { background: var(--vh-navy); }
+.vh-fab-plus { width: 50px; height: 50px; border-radius: 50%; border: 0; background: #17a65b; color: #fff; font-size: 24px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px rgba(23, 166, 91, .35); }
+.vh-fab-bar .dropdown-menu { min-width: 200px; }
+@media (max-width: 991.98px) {
+  .nxl-container { padding-bottom: 72px; }
+  body:has(.vh-fab-bar) .nxl-container { padding-bottom: 140px; }
+}
+@media print { .vh-bottom-nav, .vh-fab-bar { display: none !important; } }

@@ -6,7 +6,7 @@ $cats = expense_categories();
 $modes = payment_modes();
 $editId = (int) get('edit');
 $editing = $editId ? q_row('SELECT * FROM expenses WHERE id = ?', [$editId]) : null;
-$form = $editing ?: ['expense_date' => date('Y-m-d'), 'category' => $cats[0], 'description' => '', 'paid_to' => '', 'amount' => '', 'mode' => 'cash', 'reference' => ''];
+$form = $editing ?: ['expense_date' => date('Y-m-d'), 'category' => $cats[0], 'description' => '', 'paid_to' => '', 'amount' => '', 'mode' => 'cash', 'reference' => '', 'account_id' => null];
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_check();
@@ -25,6 +25,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         'paid_to' => mb_substr(post('paid_to'), 0, 160), 'amount' => round((float) post('amount'), 2),
         'mode' => array_key_exists(post('mode'), $modes) ? post('mode') : 'cash', 'reference' => mb_substr(post('reference'), 0, 120),
     ];
+    $form['account_id'] = resolve_account_id(post('account_id'), $form['mode']);
     if ($form['amount'] <= 0) {
         flash('error', 'Enter the expense amount.');
     } else {
@@ -114,6 +115,7 @@ require __DIR__ . '/partials/header.php';
                         <div class="col-6 mb-3"><label class="form-label">Mode</label><select name="mode" class="form-select"><?php foreach ($modes as $k => $v): ?><option value="<?= $k ?>" <?= $form['mode'] === $k ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?></select></div>
                         <div class="col-6 mb-3"><label class="form-label">Reference</label><input name="reference" class="form-control" value="<?= e($form['reference']) ?>" maxlength="120"></div>
                     </div>
+                    <div class="mb-3"><label class="form-label">Paid from</label><?= account_select('account_id', $form['account_id'] ? (int) $form['account_id'] : null, $form['mode']) ?></div>
                     <div class="d-flex gap-2"><button class="btn btn-primary flex-fill"><?= $editing ? 'Update' : 'Add' ?> expense</button><?php if ($editing): ?><a href="expenses.php" class="btn btn-light-brand">Cancel</a><?php endif; ?></div>
                 </form>
             </div>

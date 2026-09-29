@@ -311,6 +311,7 @@ function vivora_schema(): array
             payment_date DATE NOT NULL,
             amount DECIMAL(14,2) NOT NULL DEFAULT 0,
             mode ENUM('cash','upi','bank_transfer','cheque','card','other') NOT NULL DEFAULT 'cash',
+            account_id INT UNSIGNED NULL,
             reference VARCHAR(120) NOT NULL DEFAULT '',
             notes VARCHAR(400) NOT NULL DEFAULT '',
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -329,9 +330,38 @@ function vivora_schema(): array
             paid_to VARCHAR(160) NOT NULL DEFAULT '',
             amount DECIMAL(14,2) NOT NULL DEFAULT 0,
             mode ENUM('cash','upi','bank_transfer','cheque','card','other') NOT NULL DEFAULT 'cash',
+            account_id INT UNSIGNED NULL,
             reference VARCHAR(120) NOT NULL DEFAULT '',
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_date (expense_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        "CREATE TABLE IF NOT EXISTS accounts (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(120) NOT NULL,
+            type ENUM('cash','bank') NOT NULL DEFAULT 'bank',
+            bank_name VARCHAR(120) NOT NULL DEFAULT '',
+            account_no VARCHAR(40) NOT NULL DEFAULT '',
+            ifsc VARCHAR(20) NOT NULL DEFAULT '',
+            upi_id VARCHAR(80) NOT NULL DEFAULT '',
+            opening_balance DECIMAL(14,2) NOT NULL DEFAULT 0,
+            opening_date DATE NULL,
+            is_default TINYINT(1) NOT NULL DEFAULT 0,
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+        "CREATE TABLE IF NOT EXISTS account_txns (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            account_id INT UNSIGNED NOT NULL,
+            txn_date DATE NOT NULL,
+            type ENUM('add','reduce','transfer_in','transfer_out') NOT NULL,
+            amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+            note VARCHAR(300) NOT NULL DEFAULT '',
+            transfer_group VARCHAR(40) NOT NULL DEFAULT '',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_account_date (account_id, txn_date),
+            CONSTRAINT fk_acct_txn_account FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
         "CREATE TABLE IF NOT EXISTS activity_log (
@@ -425,9 +455,11 @@ function vivora_default_settings(): array
         'phone2'         => '',
         'whatsapp'       => '',
         'email'          => '',
-        'address'        => '',
-        'city'           => '',
-        'gstin'          => '',
+        'address'        => "4/2, Dhamodhran Lane, Villivakkam",
+        'city'           => 'Chennai, Tamil Nadu – 600049',
+        'gstin'          => '33CLWPM5315D1Z1',
+        'legal_name'     => 'MANIVASAGAM',
+        'business_type'  => 'Proprietorship',
         'business_hours' => 'Mon – Sat: 10:00 AM – 7:00 PM',
         'facebook'       => '',
         'instagram'      => '',
@@ -441,7 +473,7 @@ function vivora_default_settings(): array
         'invoice_prefix' => 'VH-INV-',
         'receipt_prefix' => 'VH-RCPT-',
         'invoice_due_days' => '15',
-        'company_state'  => '',
+        'company_state'  => 'Tamil Nadu',
         'upi_id'         => '',
         'invoice_terms'  => "1. Goods once sold will not be taken back or exchanged.\n2. Interest @18% p.a. will be charged on payments delayed beyond the due date.\n3. Warranty as per manufacturer terms.\n4. Subject to local jurisdiction.",
         'expense_categories' => "Rent\nSalaries\nTransport & Freight\nTravel\nElectricity\nTelephone & Internet\nOffice Supplies\nRepairs & Maintenance\nMarketing\nBank Charges\nTaxes & Fees\nOther",
@@ -518,7 +550,7 @@ function vivora_install(PDO $pdo, string $adminUser, string $adminPass): array
 }
 
 /** Bump when the schema changes; the dashboard repairs/upgrades the database automatically. */
-const VIVORA_SCHEMA_VERSION = '5';
+const VIVORA_SCHEMA_VERSION = '6';
 
 /**
  * Expected tables and columns, parsed from vivora_schema():
@@ -604,6 +636,25 @@ function vivora_schema_repair(PDO $pdo): array
     $st = $pdo->prepare('INSERT IGNORE INTO settings (skey, svalue) VALUES (?, ?)');
     foreach (vivora_default_settings() as $k => $v) {
         $st->execute([$k, $v]);
+    }
+    // Default Cash & Bank accounts, and link older payments/expenses to them by payment mode.
+    if ((int) $pdo->query('SELECT COUNT(*) FROM accounts')->fetchColumn() === 0) {
+        $pdo->exec("INSERT INTO accounts (name, type, is_default) VALUES ('Cash in Hand', 'cash', 1), ('Bank Account', 'bank', 1)");
+        $log[] = 'Created Cash in Hand and Bank Account.';
+    }
+    $cashId = (int) $pdo->query("SELECT id FROM accounts WHERE type = 'cash' ORDER BY is_default DESC, id LIMIT 1")->fetchColumn();
+    $bankId = (int) $pdo->query("SELECT id FROM accounts WHERE type = 'bank' ORDER BY is_default DESC, id LIMIT 1")->fetchColumn();
+    foreach (['payments', 'expenses'] as $t) {
+        if ($cashId) $pdo->exec("UPDATE `$t` SET account_id = $cashId WHERE account_id IS NULL AND mode = 'cash'");
+        if ($bankId) $pdo->exec("UPDATE `$t` SET account_id = $bankId WHERE account_id IS NULL AND mode <> 'cash'");
+    }
+    // Business details from the GST registration certificate – filled once, only where still empty.
+    if (!$pdo->query("SELECT COUNT(*) FROM settings WHERE skey = 'gst_profile_applied'")->fetchColumn()) {
+        $fill = $pdo->prepare("UPDATE settings SET svalue = ? WHERE skey = ? AND (svalue IS NULL OR svalue = '')");
+        foreach (['gstin', 'legal_name', 'business_type', 'address', 'city', 'company_state'] as $k) {
+            $fill->execute([vivora_default_settings()[$k], $k]);
+        }
+        $pdo->exec("INSERT INTO settings (skey, svalue) VALUES ('gst_profile_applied', '1')");
     }
     $pdo->prepare('INSERT INTO settings (skey, svalue) VALUES (?, ?) ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)')
         ->execute(['schema_version', VIVORA_SCHEMA_VERSION]);

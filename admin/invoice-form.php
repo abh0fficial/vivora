@@ -137,6 +137,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     next_doc_no('payments', 'receipt_no', setting('receipt_prefix', 'VH-RCPT-'), $data['invoice_date']), 'in', $id, $data['customer_id'],
                     $data['customer_org'] ?: $data['customer_name'], $data['invoice_date'], min((float) $payNow['amount'], $t['grand_total']), $payNow['mode'], mb_substr($payNow['reference'], 0, 120),
                 ]);
+                set_payment_account((int) db()->lastInsertId(), $_POST['account_id'] ?? null);
             }
             refresh_invoice_payment($id);
             if ($data['quotation_id']) {
@@ -275,6 +276,7 @@ require __DIR__ . '/partials/header.php';
                             <select name="pay_mode" class="form-select form-select-sm"><?php foreach (payment_modes() as $k => $v): ?><option value="<?= $k ?>" <?= $payNow['mode'] === $k ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?></select>
                             <input name="pay_reference" class="form-control form-control-sm" placeholder="Ref / UTR" value="<?= e($payNow['reference']) ?>">
                         </div>
+                        <div class="mt-2"><?= account_select('account_id', null, $payNow['mode'], 'aria-label="Received into"') ?></div>
                     <?php endif; ?>
                     <button class="btn btn-primary w-100 mt-4"><i class="feather-save me-2"></i>Save invoice</button>
                 </div>

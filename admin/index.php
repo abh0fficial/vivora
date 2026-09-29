@@ -66,6 +66,45 @@ $recentInvoices = q_all('SELECT * FROM invoices ORDER BY invoice_date DESC, id D
 $topProducts = q_all('SELECT p.id, p.name, COUNT(e.id) enquiries FROM products p LEFT JOIN enquiries e ON e.product_id = p.id WHERE p.is_active = 1 GROUP BY p.id ORDER BY enquiries DESC, p.name LIMIT 5');
 $activity = q_all('SELECT a.*, ad.username FROM activity_log a LEFT JOIN admins ad ON ad.id = a.admin_id ORDER BY a.created_at DESC LIMIT 6');
 
+// Tiles like the billing app: to collect / to pay / stock / week's sale / cash + bank.
+$toCollect = receivables_total();
+$toPay = payables_total();
+$stockVal = stock_value();
+$weekStart = date('Y-m-d', strtotime('monday this week'));
+$weekSale = (float) q_val("SELECT COALESCE(SUM(grand_total),0) FROM invoices WHERE status <> 'cancelled' AND invoice_date >= ?", [$weekStart]);
+$cashBank = array_sum(array_map(fn($a) => $a['is_active'] ? $a['balance'] : 0, account_balances()));
+
+// Transactions feed for the selected financial year.
+$fyPrev = get('fy') === 'prev';
+$fyStartYear = (int) substr(financial_year(), 0, 4) - ($fyPrev ? 1 : 0);
+$fyFrom = $fyStartYear . '-04-01';
+$fyTo = ($fyStartYear + 1) . '-03-31';
+$feed = [];
+foreach (q_all("SELECT id, invoice_no, invoice_date d, COALESCE(NULLIF(customer_org,''), customer_name) party, customer_phone phone, grand_total amt, status, created_at FROM invoices WHERE invoice_date BETWEEN ? AND ? ORDER BY invoice_date DESC, id DESC LIMIT 12", [$fyFrom, $fyTo]) as $r) {
+    $feed[] = ['d' => $r['d'], 'ts' => $r['created_at'], 'party' => $r['party'], 'label' => 'Sale ' . $r['invoice_no'], 'amt' => $r['amt'], 'sub' => ucfirst($r['status']), 'url' => 'invoice-view.php?id=' . $r['id'], 'phone' => $r['phone'], 'kind' => 'sale',
+        'msg' => 'Invoice ' . $r['invoice_no'] . ' for ' . money($r['amt']) . ' from ' . setting('company_name', 'Vivora Healthcare') . '.'];
+}
+foreach (q_all("SELECT p.id, p.receipt_no, p.payment_date d, p.party_name party, p.amount amt, p.mode, p.created_at, c.phone FROM payments p LEFT JOIN customers c ON c.id = p.customer_id WHERE p.direction = 'in' AND p.payment_date BETWEEN ? AND ? ORDER BY p.payment_date DESC, p.id DESC LIMIT 12", [$fyFrom, $fyTo]) as $r) {
+    $feed[] = ['d' => $r['d'], 'ts' => $r['created_at'], 'party' => $r['party'], 'label' => 'Received Payment #' . $r['receipt_no'], 'amt' => $r['amt'], 'sub' => payment_modes()[$r['mode']] ?? $r['mode'], 'url' => 'payment-receipt.php?id=' . $r['id'], 'phone' => $r['phone'], 'kind' => 'receipt',
+        'msg' => 'Payment received with thanks: ' . money($r['amt']) . ' (receipt ' . $r['receipt_no'] . ', ' . fmt_date($r['d']) . '). – ' . setting('company_name', 'Vivora Healthcare')];
+}
+foreach (q_all('SELECT id, bill_no, bill_date d, supplier_name party, grand_total amt, status, created_at FROM purchases WHERE bill_date BETWEEN ? AND ? ORDER BY bill_date DESC, id DESC LIMIT 12', [$fyFrom, $fyTo]) as $r) {
+    $feed[] = ['d' => $r['d'], 'ts' => $r['created_at'], 'party' => $r['party'], 'label' => 'Purchase ' . ($r['bill_no'] ?: '#' . $r['id']), 'amt' => $r['amt'], 'sub' => ucfirst($r['status']), 'url' => 'purchase-form.php?id=' . $r['id'], 'phone' => '', 'kind' => 'purchase', 'msg' => ''];
+}
+foreach (q_all("SELECT id, payment_date d, party_name party, amount amt, mode, created_at, purchase_id FROM payments WHERE direction = 'out' AND payment_date BETWEEN ? AND ? ORDER BY payment_date DESC, id DESC LIMIT 12", [$fyFrom, $fyTo]) as $r) {
+    $feed[] = ['d' => $r['d'], 'ts' => $r['created_at'], 'party' => $r['party'], 'label' => 'Payment Out', 'amt' => $r['amt'], 'sub' => payment_modes()[$r['mode']] ?? $r['mode'], 'url' => $r['purchase_id'] ? 'purchase-form.php?id=' . $r['purchase_id'] : 'payments.php?type=out', 'phone' => '', 'kind' => 'payout', 'msg' => ''];
+}
+foreach (q_all('SELECT id, expense_date d, category, paid_to, amount amt, mode, created_at FROM expenses WHERE expense_date BETWEEN ? AND ? ORDER BY expense_date DESC, id DESC LIMIT 12', [$fyFrom, $fyTo]) as $r) {
+    $feed[] = ['d' => $r['d'], 'ts' => $r['created_at'], 'party' => $r['paid_to'] ?: $r['category'], 'label' => 'Expense – ' . $r['category'], 'amt' => $r['amt'], 'sub' => payment_modes()[$r['mode']] ?? $r['mode'], 'url' => 'expenses.php?edit=' . $r['id'], 'phone' => '', 'kind' => 'expense', 'msg' => ''];
+}
+usort($feed, fn($a, $b) => [$b['d'], $b['ts']] <=> [$a['d'], $a['ts']]);
+$feed = array_slice($feed, 0, 12);
+$waFor = function (string $phone, string $msg): string {
+    $n = preg_replace('/\D+/', '', $phone);
+    if (strlen($n) === 10) $n = '91' . $n;
+    return 'https://wa.me/' . (strlen($n) >= 11 ? $n : '') . '?text=' . rawurlencode($msg);
+};
+
 $pageTitle = 'Dashboard';
 $activeNav = 'dashboard';
 $breadcrumbs = ['Dashboard' => null];
@@ -87,20 +126,62 @@ $cards = [
 ?>
 <div class="row">
     <?php foreach ([
-        ['Received this month', money($stats['received_m']), 'check-circle', 'success', 'payments.php?type=in'],
-        ['Outstanding from customers', money($stats['outstanding']), 'clock', 'warning', 'invoices.php?status=due'],
-        ['Overdue (' . $stats['overdue_n'] . ' invoices)', money($stats['overdue']), 'alert-triangle', 'danger', 'invoices.php?status=overdue'],
-        ['Purchases + expenses this month', money($stats['purchases_m'] + $stats['expenses_m']), 'shopping-cart', 'info', 'billing-reports.php?tab=pl'],
-    ] as [$l, $v, $i, $col, $u]): ?>
-        <div class="col-xxl-3 col-md-6">
-            <a href="<?= $u ?>" class="card stretch stretch-full text-reset vh-mini-stat">
-                <div class="card-body d-flex align-items-center gap-3 py-3">
-                    <span class="avatar-text avatar-md bg-soft-<?= $col ?> text-<?= $col ?>"><i class="feather-<?= $i ?>"></i></span>
-                    <div><div class="fs-6 fw-bold text-dark"><?= e($v) ?></div><div class="fs-12 text-muted"><?= e($l) ?></div></div>
+        ['To Collect', $toCollect, 'arrow-down', 'success', 'parties.php?tab=collect', 'vh-tile-collect'],
+        ['To Pay', $toPay, 'arrow-up', 'danger', 'parties.php?tab=pay', 'vh-tile-pay'],
+        ['Stock Value', $stockVal, 'layers', 'primary', 'billing-reports.php?tab=stock', ''],
+        ["This week's sale", $weekSale, 'trending-up', 'primary', 'billing-reports.php?tab=salessummary&from=' . $weekStart . '&to=' . date('Y-m-d'), ''],
+        ['Total Balance (Cash + Bank)', $cashBank, 'briefcase', 'primary', 'cash-bank.php', ''],
+        ['Reports', null, 'pie-chart', 'primary', 'reports-hub.php', ''],
+    ] as [$l, $v, $i, $col, $u, $cls]): ?>
+        <div class="col-xxl-2 col-lg-4 col-6">
+            <a href="<?= e($u) ?>" class="card stretch stretch-full text-reset vh-tile <?= $cls ?>">
+                <div class="card-body d-flex align-items-center justify-content-between gap-2">
+                    <div class="min-w-0">
+                        <?php if ($v !== null): ?>
+                            <div class="fs-5 fw-bold <?= $col === 'primary' ? 'text-dark' : 'text-' . $col ?> text-nowrap"><?= money($v) ?></div>
+                            <div class="fs-13 fw-semibold <?= $col === 'primary' ? 'text-muted' : 'text-' . $col ?>"><?= e($l) ?> <?= $col !== 'primary' ? '<i class="feather-' . $i . '"></i>' : '' ?></div>
+                        <?php else: ?>
+                            <div class="fs-5 fw-bold text-dark">Reports</div><div class="fs-13 text-muted text-truncate">Sales, party, GST…</div>
+                        <?php endif; ?>
+                    </div>
+                    <i class="feather-chevron-right text-muted"></i>
                 </div>
             </a>
         </div>
     <?php endforeach; ?>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Transactions</h5>
+                <a href="index.php<?= $fyPrev ? '' : '?fy=prev' ?>" class="btn btn-sm btn-light-brand"><i class="feather-calendar me-1"></i><?= $fyPrev ? 'Previous fiscal year (' . $fyStartYear . '-' . substr((string) ($fyStartYear + 1), -2) . ')' : 'This fiscal year (' . financial_year() . ')' ?> <i class="feather-repeat ms-1"></i></a>
+            </div>
+            <div class="card-body p-0">
+                <?php if (!$feed): ?><div class="vh-empty"><i class="feather-list"></i>No transactions in this fiscal year yet.</div><?php endif; ?>
+                <div class="row g-0">
+                    <?php foreach ($feed as $f): $inflow = in_array($f['kind'], ['sale', 'receipt'], true); ?>
+                        <div class="col-xl-6">
+                            <div class="vh-feed-item">
+                                <div class="d-flex justify-content-between gap-2">
+                                    <a href="<?= e($f['url']) ?>" class="fw-bold text-dark text-truncate"><?= e($f['party'] ?: '—') ?></a>
+                                    <span class="fw-bold text-nowrap <?= $inflow ? 'text-success' : 'text-danger' ?>"><?= money($f['amt']) ?></span>
+                                </div>
+                                <div class="d-flex justify-content-between gap-2 fs-12 text-muted mt-1">
+                                    <span class="text-truncate"><?= e($f['label']) ?></span><span class="text-nowrap"><?= e($f['sub']) ?></span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <span class="fs-12 text-muted"><?= e(fmt_date($f['d'])) ?></span>
+                                    <?php if ($f['msg'] !== ''): ?>
+                                        <a href="<?= e($waFor((string) $f['phone'], $f['msg'])) ?>" target="_blank" class="fs-12 fw-semibold"><i class="feather-share-2 me-1"></i><?= $f['kind'] === 'receipt' ? 'Send Receipt' : 'Share' ?></a>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+    </div>
     <?php foreach ($cards as $c): ?>
     <div class="col-xxl-3 col-md-6">
         <div class="card stretch stretch-full">

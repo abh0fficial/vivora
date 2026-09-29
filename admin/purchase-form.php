@@ -33,6 +33,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             q('INSERT INTO payments (receipt_no, direction, purchase_id, supplier_id, party_name, payment_date, amount, mode, reference) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [mb_substr(post('reference'), 0, 40), 'out', $id, $pur['supplier_id'], $pur['supplier_name'], $date, $amount,
                     array_key_exists(post('mode'), $modes) ? post('mode') : 'cash', mb_substr(post('reference'), 0, 120)]);
+            set_payment_account((int) db()->lastInsertId(), $_POST['account_id'] ?? null);
             refresh_purchase_payment($id);
             log_activity('payment.create', 'Paid ' . money($amount) . ' to ' . $pur['supplier_name'] . ' for bill ' . $pur['bill_no']);
             flash('success', 'Payment of ' . money($amount) . ' recorded.');
@@ -99,6 +100,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 q('INSERT INTO payments (receipt_no, direction, purchase_id, supplier_id, party_name, payment_date, amount, mode, reference) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
                     ['', 'out', $id, $data['supplier_id'], $data['supplier_name'], $data['bill_date'], min((float) post('pay_amount'), $sub + $tax),
                         array_key_exists(post('pay_mode'), $modes) ? post('pay_mode') : 'cash', mb_substr(post('pay_reference'), 0, 120)]);
+                set_payment_account((int) db()->lastInsertId(), $_POST['account_id'] ?? null);
             }
             refresh_purchase_payment($id);
             $pdo->commit();
@@ -175,6 +177,7 @@ require __DIR__ . '/partials/header.php';
                             <div class="col-md-4"><label class="form-label">Paid now (₹, optional)</label><input type="number" step="0.01" min="0" name="pay_amount" class="form-control"></div>
                             <div class="col-md-4"><label class="form-label">Mode</label><select name="pay_mode" class="form-select"><?php foreach ($modes as $k => $v): ?><option value="<?= $k ?>"><?= e($v) ?></option><?php endforeach; ?></select></div>
                             <div class="col-md-4"><label class="form-label">Reference</label><input name="pay_reference" class="form-control"></div>
+                            <div class="col-md-4 mt-3"><label class="form-label">Paid from</label><?= account_select('account_id', null, 'cash') ?></div>
                         </div>
                     <?php endif; ?>
                     <button class="btn btn-primary mt-4"><i class="feather-save me-2"></i>Save purchase bill</button>
@@ -205,6 +208,7 @@ require __DIR__ . '/partials/header.php';
                                 <div class="col-6"><input type="date" name="payment_date" class="form-control" value="<?= date('Y-m-d') ?>"></div>
                                 <div class="col-6"><select name="mode" class="form-select"><?php foreach ($modes as $k => $v): ?><option value="<?= $k ?>"><?= e($v) ?></option><?php endforeach; ?></select></div>
                                 <div class="col-6"><input name="reference" class="form-control" placeholder="Ref / cheque"></div>
+                                <div class="col-12"><?= account_select('account_id', null, 'cash') ?></div>
                             </div>
                             <button class="btn btn-success w-100 mt-3"><i class="feather-check me-2"></i>Record payment</button>
                         </form>

@@ -31,6 +31,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 $no = next_doc_no('payments', 'receipt_no', setting('receipt_prefix', 'VH-RCPT-'), $date);
                 q('INSERT INTO payments (receipt_no, direction, invoice_id, customer_id, party_name, payment_date, amount, mode, reference, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                     [$no, 'in', $inv['id'] ?? null, $custId, mb_substr($party, 0, 200), $date, $amount, $mode, mb_substr(post('reference'), 0, 120), mb_substr(post('notes'), 0, 400)]);
+                set_payment_account((int) db()->lastInsertId(), $_POST['account_id'] ?? null);
                 if ($inv) refresh_invoice_payment((int) $inv['id']);
                 log_activity('payment.create', 'Received ' . money($amount) . " from $party ($no)");
                 flash('success', 'Payment of ' . money($amount) . " recorded. Receipt $no.");
@@ -44,6 +45,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             } else {
                 q('INSERT INTO payments (receipt_no, direction, purchase_id, supplier_id, party_name, payment_date, amount, mode, reference, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                     [mb_substr(post('reference'), 0, 40), 'out', $pur['id'] ?? null, $pur['supplier_id'] ?? ($sup['id'] ?? null), mb_substr($party, 0, 200), $date, $amount, $mode, mb_substr(post('reference'), 0, 120), mb_substr(post('notes'), 0, 400)]);
+                set_payment_account((int) db()->lastInsertId(), $_POST['account_id'] ?? null);
                 if ($pur) refresh_purchase_payment((int) $pur['id']);
                 log_activity('payment.create', 'Paid ' . money($amount) . " to $party");
                 flash('success', 'Payment of ' . money($amount) . " to $party recorded.");
@@ -57,7 +59,7 @@ $from = preg_match('/^\d{4}-\d{2}-\d{2}$/', get('from')) ? get('from') : date('Y
 $to = preg_match('/^\d{4}-\d{2}-\d{2}$/', get('to')) ? get('to') : date('Y-m-d');
 $mode = array_key_exists(get('mode'), $modes) ? get('mode') : '';
 $params = [$dir, $from, $to];
-$sql = 'SELECT p.*, i.invoice_no, pu.bill_no FROM payments p LEFT JOIN invoices i ON i.id = p.invoice_id LEFT JOIN purchases pu ON pu.id = p.purchase_id
+$sql = 'SELECT p.*, i.invoice_no, pu.bill_no, ac.name account_name FROM payments p LEFT JOIN invoices i ON i.id = p.invoice_id LEFT JOIN purchases pu ON pu.id = p.purchase_id LEFT JOIN accounts ac ON ac.id = p.account_id
     WHERE p.direction = ? AND p.payment_date BETWEEN ? AND ?';
 if ($mode) { $sql .= ' AND p.mode = ?'; $params[] = $mode; }
 $rows = q_all($sql . ' ORDER BY p.payment_date DESC, p.id DESC', $params);
@@ -103,7 +105,7 @@ require __DIR__ . '/partials/header.php';
                                 <td><?= $dir === 'in' ? '<a href="payment-receipt.php?id=' . (int) $r['id'] . '" class="fw-semibold">' . e($r['receipt_no']) . '</a>' : e($r['reference'] ?: '—') ?></td>
                                 <td class="fw-semibold text-dark"><?= e($r['party_name']) ?></td>
                                 <td><?php if ($r['invoice_no']): ?><a href="invoice-view.php?id=<?= (int) $r['invoice_id'] ?>"><?= e($r['invoice_no']) ?></a><?php elseif ($r['bill_no'] !== null): ?><a href="purchase-form.php?id=<?= (int) $r['purchase_id'] ?>">Bill <?= e($r['bill_no'] ?: '#' . $r['purchase_id']) ?></a><?php else: ?><span class="text-muted fs-12">On account</span><?php endif; ?></td>
-                                <td><span class="badge bg-gray-200 text-dark"><?= e($modes[$r['mode']] ?? $r['mode']) ?></span><?= $dir === 'in' && $r['reference'] ? '<div class="fs-11 text-muted">' . e($r['reference']) . '</div>' : '' ?></td>
+                                <td><span class="badge bg-gray-200 text-dark"><?= e($modes[$r['mode']] ?? $r['mode']) ?></span><?= $r['account_name'] ? '<div class="fs-11 text-muted">' . e($r['account_name']) . '</div>' : '' ?><?= $dir === 'in' && $r['reference'] ? '<div class="fs-11 text-muted">' . e($r['reference']) . '</div>' : '' ?></td>
                                 <td class="text-end fw-semibold <?= $dir === 'in' ? 'text-success' : 'text-danger' ?>"><?= money($r['amount']) ?></td>
                                 <td class="text-end">
                                     <div class="hstack gap-2 justify-content-end">
@@ -130,7 +132,7 @@ require __DIR__ . '/partials/header.php';
                     <?= csrf_field() ?>
                     <?php if ($dir === 'in'): ?>
                         <div class="mb-3"><label class="form-label">Customer</label>
-                            <select name="customer_id" id="partyPick" class="form-select"><option value="">— Select —</option><?php foreach ($customers as $c): ?><option value="<?= (int) $c['id'] ?>"><?= e($c['organization'] ?: $c['name']) ?></option><?php endforeach; ?></select></div>
+                            <select name="customer_id" id="partyPick" class="form-select"><option value="">— Select —</option><?php foreach ($customers as $c): ?><option value="<?= (int) $c['id'] ?>" <?= (int) get('customer') === (int) $c['id'] ? 'selected' : '' ?>><?= e($c['organization'] ?: $c['name']) ?></option><?php endforeach; ?></select></div>
                         <div class="mb-3"><label class="form-label">Against invoice</label>
                             <select name="invoice_id" id="docPick" class="form-select"><option value="">On account / advance</option>
                                 <?php foreach ($openInvoices as $oi): ?><option value="<?= (int) $oi['id'] ?>" data-party="<?= (int) $oi['customer_id'] ?>" data-bal="<?= (float) $oi['bal'] ?>"><?= e($oi['invoice_no']) ?> · <?= e($oi['customer_org'] ?: $oi['customer_name']) ?> · due <?= money($oi['bal']) ?></option><?php endforeach; ?>
@@ -138,7 +140,7 @@ require __DIR__ . '/partials/header.php';
                         <div class="mb-3"><label class="form-label">Or name (walk-in)</label><input name="party_name" class="form-control" maxlength="200"></div>
                     <?php else: ?>
                         <div class="mb-3"><label class="form-label">Supplier</label>
-                            <select name="supplier_id" id="partyPick" class="form-select"><option value="">— Select —</option><?php foreach ($suppliers as $s): ?><option value="<?= (int) $s['id'] ?>"><?= e($s['name']) ?></option><?php endforeach; ?></select></div>
+                            <select name="supplier_id" id="partyPick" class="form-select"><option value="">— Select —</option><?php foreach ($suppliers as $s): ?><option value="<?= (int) $s['id'] ?>" <?= (int) get('supplier') === (int) $s['id'] ? 'selected' : '' ?>><?= e($s['name']) ?></option><?php endforeach; ?></select></div>
                         <div class="mb-3"><label class="form-label">Against purchase bill</label>
                             <select name="purchase_id" id="docPick" class="form-select"><option value="">On account / advance</option>
                                 <?php foreach ($openBills as $ob): ?><option value="<?= (int) $ob['id'] ?>" data-party="<?= (int) $ob['supplier_id'] ?>" data-bal="<?= (float) $ob['bal'] ?>">Bill <?= e($ob['bill_no'] ?: '#' . $ob['id']) ?> · <?= e($ob['supplier_name']) ?> · due <?= money($ob['bal']) ?></option><?php endforeach; ?>
@@ -150,6 +152,7 @@ require __DIR__ . '/partials/header.php';
                         <div class="col-6 mb-3"><label class="form-label">Date</label><input type="date" name="payment_date" class="form-control" value="<?= date('Y-m-d') ?>"></div>
                     </div>
                     <div class="mb-3"><label class="form-label">Mode</label><select name="mode" class="form-select"><?php foreach ($modes as $k => $v): ?><option value="<?= $k ?>"><?= e($v) ?></option><?php endforeach; ?></select></div>
+                    <div class="mb-3"><label class="form-label"><?= $dir === 'in' ? 'Received into' : 'Paid from' ?></label><?= account_select('account_id', null, 'cash') ?></div>
                     <div class="mb-3"><label class="form-label">Reference (UTR / cheque no.)</label><input name="reference" class="form-control" maxlength="120"></div>
                     <div class="mb-3"><label class="form-label">Notes</label><input name="notes" class="form-control" maxlength="400"></div>
                     <button class="btn btn-primary w-100"><i class="feather-save me-2"></i>Save payment</button>
@@ -173,6 +176,7 @@ $inlineJs = <<<'JS'
         Array.prototype.forEach.call(doc.options, function (o) { if (o.value) o.hidden = party.value !== '' && o.dataset.party !== party.value; });
         if (doc.selectedOptions[0] && doc.selectedOptions[0].hidden) doc.value = '';
     });
+    if (party.value) party.dispatchEvent(new Event('change'));
     doc.addEventListener('change', function () {
         var o = doc.selectedOptions[0];
         if (o && o.value) { amt.value = o.dataset.bal; if (o.dataset.party && o.dataset.party !== '0') party.value = o.dataset.party; }

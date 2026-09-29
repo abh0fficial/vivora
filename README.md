@@ -21,6 +21,20 @@ This is a private dashboard for your own day-to-day office work: GST billing, st
 - **Customer ledger / statement of account:** opening balance, invoices, payments and running balance, printable.
 - **Outstanding and overdue tracking**, with overdue alerts in the notification bell.
 
+### Dashboard (like a mobile billing app)
+- **Tiles:** To Collect, To Pay, Stock Value, This week's sale, Total Balance (Cash + Bank), and a Reports shortcut.
+- **Transactions feed:** switch between this and the previous financial year; Send Receipt / Share goes out over WhatsApp.
+- **On phones:** Received Payment, a **+** quick menu and **+ Bill / Invoice** buttons, plus a bottom bar with Dashboard · Parties · Items · Reports · More.
+
+### Cash & Bank
+- Cash in hand plus any number of bank accounts, each with an opening balance.
+- Every payment and expense is linked to an account. Cash picks your cash account, while UPI, bank and cheque pick your default bank account; you can change it on each form.
+- Add money, withdraw money, or transfer between accounts; each account has a statement with a running balance.
+
+### Parties
+- Customers and suppliers in one list, showing **To collect** / **To pay** and advances.
+- Statement / ledger for both customers and suppliers, plus WhatsApp payment reminders.
+
 ### Purchases & expenses
 - **Suppliers**, with how much you've bought from each and how much you still owe.
 - **Purchase bills**
@@ -30,6 +44,10 @@ This is a private dashboard for your own day-to-day office work: GST billing, st
 - **Expenses** by category (rent, salaries, transport, …), with a summary by category.
 
 ### Reports (all exportable to CSV for your CA)
+One Reports page lists them all:
+- **Popular:** Bill-wise profit, Sales summary, Daybook, Profit & loss, Party statement, Stock summary, Balance sheet, Cash & bank (all payments)
+- **More:** Party reports, Item reports, GST reports (GSTR-3B summary, **GSTR-1** B2B / B2C, HSN summary), Transaction reports (filter by type and party)
+
 - Sales register
 - GST summary: output tax by rate, B2B/B2C split, input credit and net GST payable
 - HSN summary
@@ -81,7 +99,8 @@ Deploy the new code the same way (Hostinger Git → **Deploy**). The dashboard u
 ### 3. Log in and finish setup
 - Dashboard: `https://your-domain/`, which redirects to `/admin/`
 - Username **`admin`**, password **`admin123`**. Change this right away in **My Profile**.
-- Fill in **Company Settings**: GSTIN, **company state** (needed for CGST/SGST vs IGST), phone, address, bank details and UPI ID. They are printed on invoices and quotations.
+- Check **Company Settings**. Your GST registration details are filled in already: GSTIN 33CLWPM5315D1Z1, Vivora Healthcare, Manivasagam (Proprietor), Villivakkam, Chennai, **Tamil Nadu**. Add your phone, bank details and UPI ID.
+- In **Cash & Bank**, add your bank account(s) with opening balances.
 - Add **HSN codes** and **cost prices** to your products so invoices and the profit report are complete.
 - Add staff logins under **Users & Roles** if other people will use the dashboard.
 - Edit the starter products: add prices, stock, images and brochures.

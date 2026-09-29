@@ -538,7 +538,7 @@ function next_doc_no(string $table, string $column, string $prefix, ?string $dat
 
 function payment_modes(): array
 {
-    return ['cash' => 'Cash', 'upi' => 'UPI', 'bank_transfer' => 'Bank transfer / NEFT', 'cheque' => 'Cheque', 'card' => 'Card', 'other' => 'Other'];
+    return ['cash' => 'Cash', 'upi' => 'UPI', 'bank_transfer' => 'Net Banking / NEFT / RTGS', 'cheque' => 'Cheque', 'card' => 'Card', 'other' => 'Other'];
 }
 
 function expense_categories(): array
@@ -632,4 +632,95 @@ function customer_balance(int $customerId): float
     $billed = (float) q_val("SELECT COALESCE(SUM(grand_total),0) FROM invoices WHERE customer_id = ? AND status <> 'cancelled'", [$customerId]);
     $paid = (float) q_val("SELECT COALESCE(SUM(amount),0) FROM payments WHERE customer_id = ? AND direction = 'in'", [$customerId]);
     return round($billed - $paid, 2);
+}
+
+/* ------------------------------------------------------------------ */
+/* Cash & Bank                                                         */
+/* ------------------------------------------------------------------ */
+
+function cash_bank_accounts(bool $activeOnly = true): array
+{
+    return q_all('SELECT * FROM accounts' . ($activeOnly ? ' WHERE is_active = 1' : '') . " ORDER BY FIELD(type,'cash','bank'), is_default DESC, name");
+}
+
+/** Default account for a payment mode: cash → cash account, everything else → default bank. */
+function default_account_id(string $mode): ?int
+{
+    $type = $mode === 'cash' ? 'cash' : 'bank';
+    $id = q_val('SELECT id FROM accounts WHERE type = ? AND is_active = 1 ORDER BY is_default DESC, id LIMIT 1', [$type])
+        ?: q_val('SELECT id FROM accounts WHERE is_active = 1 ORDER BY is_default DESC, id LIMIT 1');
+    return $id ? (int) $id : null;
+}
+
+/** Use the posted account if it exists, otherwise the default for the mode. */
+function resolve_account_id($posted, string $mode): ?int
+{
+    $id = (int) $posted;
+    if ($id && q_val('SELECT id FROM accounts WHERE id = ?', [$id])) {
+        return $id;
+    }
+    return default_account_id($mode);
+}
+
+/** Balance of each account (optionally as of a date): opening + receipts − payments − expenses ± adjustments. */
+function account_balances(?string $asOf = null): array
+{
+    $d = $asOf ?? '9999-12-31';
+    $out = [];
+    foreach (cash_bank_accounts(false) as $a) {
+        $id = (int) $a['id'];
+        $in = (float) q_val("SELECT COALESCE(SUM(amount),0) FROM payments WHERE account_id = ? AND direction = 'in' AND payment_date <= ?", [$id, $d]);
+        $paid = (float) q_val("SELECT COALESCE(SUM(amount),0) FROM payments WHERE account_id = ? AND direction = 'out' AND payment_date <= ?", [$id, $d]);
+        $exp = (float) q_val('SELECT COALESCE(SUM(amount),0) FROM expenses WHERE account_id = ? AND expense_date <= ?', [$id, $d]);
+        $adj = (float) q_val("SELECT COALESCE(SUM(CASE WHEN type IN ('add','transfer_in') THEN amount ELSE -amount END),0) FROM account_txns WHERE account_id = ? AND txn_date <= ?", [$id, $d]);
+        $a['balance'] = round((float) $a['opening_balance'] + $in - $paid - $exp + $adj, 2);
+        $out[$id] = $a;
+    }
+    return $out;
+}
+
+function account_select(string $name, ?int $selected, string $mode = 'cash', string $extra = ''): string
+{
+    $selected = $selected ?: default_account_id($mode);
+    $html = '<select name="' . e($name) . '" class="form-select vh-account-pick" ' . $extra . '>';
+    foreach (cash_bank_accounts() as $a) {
+        $html .= '<option value="' . (int) $a['id'] . '" data-type="' . e($a['type']) . '"' . ((int) $a['id'] === (int) $selected ? ' selected' : '') . '>'
+            . e($a['name']) . ($a['type'] === 'bank' && $a['account_no'] ? ' ·' . e(substr($a['account_no'], -4)) : '') . '</option>';
+    }
+    return $html . '</select>';
+}
+
+/** Money to collect: unpaid balance of all open sales invoices. */
+function receivables_total(): float
+{
+    return (float) q_val("SELECT COALESCE(SUM(grand_total - amount_paid),0) FROM invoices WHERE status IN ('unpaid','partial')");
+}
+
+/** Money to pay: unpaid balance of all open purchase bills. */
+function payables_total(): float
+{
+    return (float) q_val("SELECT COALESCE(SUM(grand_total - amount_paid),0) FROM purchases WHERE status IN ('unpaid','partial')");
+}
+
+/** Stock value at cost price (falls back to selling price when no cost is set). */
+function stock_value(): float
+{
+    return (float) q_val('SELECT COALESCE(SUM(stock_qty * COALESCE(purchase_price, price, 0)),0) FROM products WHERE stock_qty > 0');
+}
+
+/** Balance of a supplier: purchases minus payments made. */
+function supplier_balance(int $supplierId): float
+{
+    $billed = (float) q_val('SELECT COALESCE(SUM(grand_total),0) FROM purchases WHERE supplier_id = ?', [$supplierId]);
+    $paid = (float) q_val("SELECT COALESCE(SUM(amount),0) FROM payments WHERE supplier_id = ? AND direction = 'out'", [$supplierId]);
+    return round($billed - $paid, 2);
+}
+
+/** Link a just-saved payment to a Cash/Bank account (the posted one, or the default for its mode). */
+function set_payment_account(int $paymentId, $postedAccount = null): void
+{
+    $mode = (string) q_val('SELECT mode FROM payments WHERE id = ?', [$paymentId]);
+    if ($mode !== '') {
+        q('UPDATE payments SET account_id = ? WHERE id = ?', [resolve_account_id($postedAccount, $mode), $paymentId]);
+    }
 }

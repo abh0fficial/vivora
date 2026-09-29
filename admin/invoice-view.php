@@ -22,6 +22,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $no = next_doc_no('payments', 'receipt_no', setting('receipt_prefix', 'VH-RCPT-'), $date);
             q('INSERT INTO payments (receipt_no, direction, invoice_id, customer_id, party_name, payment_date, amount, mode, reference, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [$no, 'in', $id, $inv['customer_id'], $inv['customer_org'] ?: $inv['customer_name'], $date, $amount, $mode, mb_substr(post('reference'), 0, 120), mb_substr(post('notes'), 0, 400)]);
+            set_payment_account((int) db()->lastInsertId(), $_POST['account_id'] ?? null);
             refresh_invoice_payment($id);
             log_activity('payment.create', "Received " . money($amount) . " against {$inv['invoice_no']} ($no)");
             flash('success', 'Payment of ' . money($amount) . " recorded (receipt $no).");
@@ -103,6 +104,7 @@ require __DIR__ . '/partials/header.php';
                         <img src="<?= asset('images/logo-full.png') ?>" alt="<?= e($company) ?>" style="max-width:220px" class="mb-3">
                         <div class="fs-12 text-muted" style="max-width:340px">
                             <strong class="text-dark"><?= e($company) ?></strong><br>
+                            <?= setting('legal_name') ? (setting('business_type') === 'Proprietorship' ? 'Proprietor: ' : 'Legal name: ') . e(setting('legal_name')) . '<br>' : '' ?>
                             <?= setting('address') ? nl2br(e(setting('address'))) . '<br>' : '' ?><?= setting('city') ? e(setting('city')) . '<br>' : '' ?>
                             <?= setting('phone') ? 'Phone: ' . e(setting('phone')) . '<br>' : '' ?><?= setting('email') ? 'Email: ' . e(setting('email')) . '<br>' : '' ?>
                             <?= setting('gstin') ? '<strong class="text-dark">GSTIN: ' . e(setting('gstin')) . '</strong><br>' : '' ?>
@@ -220,6 +222,7 @@ require __DIR__ . '/partials/header.php';
                     <div class="mb-2"><label class="form-label">Amount (₹)</label><input type="number" step="0.01" min="0.01" name="amount" class="form-control" value="<?= e($balance) ?>" required></div>
                     <div class="mb-2"><label class="form-label">Date</label><input type="date" name="payment_date" class="form-control" value="<?= date('Y-m-d') ?>"></div>
                     <div class="mb-2"><label class="form-label">Mode</label><select name="mode" class="form-select"><?php foreach (payment_modes() as $k => $v): ?><option value="<?= $k ?>"><?= e($v) ?></option><?php endforeach; ?></select></div>
+                    <div class="mb-2"><label class="form-label">Received into</label><?= account_select('account_id', null, 'cash') ?></div>
                     <div class="mb-3"><label class="form-label">Reference (UTR / cheque no.)</label><input name="reference" class="form-control" maxlength="120"></div>
                     <button class="btn btn-success w-100"><i class="feather-check me-2"></i>Save payment</button>
                 </form>

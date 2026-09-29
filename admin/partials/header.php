@@ -32,12 +32,16 @@ $nav = [
         ['key' => 'quotations', 'label' => 'All Quotations', 'url' => 'quotations.php'],
         ['key' => 'quotation-new', 'label' => 'Create Quotation', 'url' => 'quotation-form.php'],
     ]],
-    ['key' => 'customers', 'label' => 'Customers', 'icon' => 'users', 'url' => 'customers.php'],
+    ['key' => 'parties', 'label' => 'Parties', 'icon' => 'users', 'children' => [
+        ['key' => 'parties', 'label' => 'All Parties', 'url' => 'parties.php'],
+        ['key' => 'customers', 'label' => 'Customers', 'url' => 'customers.php'],
+        ['key' => 'suppliers', 'label' => 'Suppliers', 'url' => 'suppliers.php'],
+    ]],
+    ['key' => 'cash-bank', 'label' => 'Cash & Bank', 'icon' => 'briefcase', 'url' => 'cash-bank.php'],
     ['caption' => 'Purchases & Expenses'],
     ['key' => 'purchases', 'label' => 'Purchases', 'icon' => 'shopping-cart', 'children' => [
         ['key' => 'purchases', 'label' => 'Purchase Bills', 'url' => 'purchases.php'],
         ['key' => 'purchase-new', 'label' => 'New Purchase Bill', 'url' => 'purchase-form.php'],
-        ['key' => 'suppliers', 'label' => 'Suppliers', 'url' => 'suppliers.php'],
     ]],
     ['key' => 'expenses', 'label' => 'Expenses', 'icon' => 'dollar-sign', 'url' => 'expenses.php'],
     ['caption' => 'Catalogue & Stock'],
@@ -54,7 +58,7 @@ $nav = [
     ]],
     ['key' => 'service', 'label' => 'Service Requests', 'icon' => 'tool', 'url' => 'service-requests.php', 'badge' => $openService, 'badgeColor' => 'danger'],
     ['caption' => 'Reports'],
-    ['key' => 'billing-reports', 'label' => 'Billing & GST Reports', 'icon' => 'pie-chart', 'url' => 'billing-reports.php'],
+    ['key' => 'reports-hub', 'label' => 'All Reports', 'icon' => 'pie-chart', 'url' => 'reports-hub.php'],
     ['key' => 'reports', 'label' => 'Business Reports', 'icon' => 'bar-chart-2', 'url' => 'reports.php'],
     ['caption' => 'Administration'],
     ['key' => 'settings', 'label' => 'Company Settings', 'icon' => 'settings', 'url' => 'settings.php', 'owner' => true],
@@ -254,7 +258,7 @@ function nav_is_active(array $item, string $active): bool
 
 <main class="nxl-container">
     <div class="nxl-content">
-        <div class="page-header<?= empty($pageActions) ? ' vh-no-actions' : '' ?>">
+        <div class="page-header<?= empty($pageActions) || $activeNav === 'dashboard' ? ' vh-no-actions' : '' ?>">
             <div class="page-header-left d-flex align-items-center">
                 <div class="page-header-title">
                     <h5 class="m-b-10"><?= e($pageTitle) ?></h5>

@@ -19,7 +19,7 @@ $dbVersion = (string) q_val('SELECT VERSION()');
 $uploadsOk = is_writable(APP_ROOT . '/uploads/products') && is_writable(APP_ROOT . '/uploads/brochures');
 $defaultPw = password_verify('admin123', (string) q_val('SELECT password_hash FROM admins WHERE id = ?', [$admin['id']]));
 $checks = [
-    ['PHP version', PHP_VERSION, version_compare(PHP_VERSION, '7.4', '>='), 'PHP 7.4 or newer is required (8.1+ recommended). Change it in hPanel → Advanced → PHP Configuration.'],
+    ['PHP version', PHP_VERSION, version_compare(PHP_VERSION, '8.0', '>='), 'PHP 8.0 or newer is required (8.2 recommended). Change it in hPanel → Advanced → PHP Configuration.'],
     ['MySQL / MariaDB', $dbVersion, true, ''],
     ['Database tables', $problems ? "$problems need repair" : count($status) . ' tables OK', $problems === 0, 'Click “Repair database” below.'],
     ['Upload folders writable', $uploadsOk ? 'Yes' : 'No', $uploadsOk, 'Set uploads/products and uploads/brochures to permission 755 in File Manager.'],
